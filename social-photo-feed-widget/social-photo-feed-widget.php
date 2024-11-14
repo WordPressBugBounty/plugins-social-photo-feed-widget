@@ -5,7 +5,7 @@ Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 Tags: instagram, feed, widget, photos, gallery
-Version: 1.4.6
+Version: 1.4.7
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Contributors: trustindex
@@ -25,7 +25,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.4.6", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.4.7", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);
@@ -43,6 +43,14 @@ $path = str_replace('http://', 'https://', $path);
 }
 wp_register_style('trustindex-feed-widget-css-'. $pluginManagerInstance->getShortName(), $path, [], filemtime($pluginManagerInstance->getCssFile()));
 });
+}
+if (!function_exists('trustindex_esc_css')) {
+ function trustindex_esc_css($css) {
+ $css = wp_strip_all_tags($css);
+ $css = esc_html($css);
+ $css = str_replace(['&lt;','&gt;','&quot;', '&#039;', '&amp;'], ['<', '>', '"', "'", '&'], $css);
+ return $css;
+ }
 }
 add_action('init', [ $pluginManagerInstance, 'shortcode' ]);
 add_filter('script_loader_tag', function($tag, $handle, $src) {
@@ -102,6 +110,36 @@ echo '
 </p>
 </div>';
 }
+});
+add_action('elementor/widgets/widgets_registered', function ($widgetsManager) {
+require_once(__DIR__ . '/include/elementor-widgets.php');
+$widgetsManager->register(new \Elementor\TrustrindexFeedWidget_Instagram());
+});
+add_action('elementor/elements/categories_registered', function ($elementsManager) {
+$elementsManager->add_category(
+'trustindex',
+[
+'title' => __('Trustindex', 'social-photo-feed-widget'),
+'icon' => 'fa fa-plug',
+]
+);
+});
+add_action('wp_enqueue_scripts', function() use ($pluginManagerInstance) {
+if (!is_user_logged_in()) {
+return;
+}
+foreach ($pluginManagerInstance->getNotificationOptions() as $type => $options) {
+if (!$pluginManagerInstance->isNotificationActive($type) || !in_array($options['type'], ['error'])) {
+continue;
+}
+echo '<div class="trustindex-notice notice-'. esc_attr($options['type']) . '" style="left:-50%;opacity:0;" data-redirect-url="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=open')) .'">';
+echo '<span class="trustindex-notice-dismiss" data-close-url="' . esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() . '/admin.php&notification=' . $type . '&action=later&remind-days=1')) . '"></span>';
+echo wp_kses_post($options['short-message']);
+echo '</div>';
+}
+wp_register_script('trustindex_frontend_notification', $pluginManagerInstance->getPluginFileUrl('assets/js/frontend-notifictions.js'), [], $pluginManagerInstance->getVersion(), ['in_footer' => false]);
+wp_enqueue_script('trustindex_frontend_notification');
+wp_enqueue_style('trustindex_frontend_notification', $pluginManagerInstance->getPluginFileUrl('assets/css/frontend-notifictions.css'), [], $pluginManagerInstance->getVersion());
 });
 unset($pluginManagerInstance);
 ?>

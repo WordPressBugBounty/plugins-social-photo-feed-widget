@@ -200,7 +200,6 @@ echo esc_html(sprintf(__('This will ensure that your %s Feed Widget continues to
 <input type="hidden" name="command" value="connect-source" />
 <input type="hidden" name="data" required="required" value="" />
 </form>
-
 <?php $connectUrl = 'https://admin.trustindex.io/source/edit_feed/type/Instagram/iframe/1'; ?>
 <?php
 if ($isReconnectingSource) {

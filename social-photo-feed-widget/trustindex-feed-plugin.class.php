@@ -201,7 +201,7 @@ $response = wp_remote_get('https://cdn.trustindex.io/wp-feeds/'. substr($publicI
 'sslverify' => false
 ]);
 if (is_wp_error($response)) {
-echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. print_r($response, true)));
+echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($response)));
 die;
 }
 $data = $this->updateFeedData(json_decode($response['body'], true), $data);
@@ -3158,7 +3158,7 @@ return $this->errorBoxForAdmins(__('CSS file could not saved.', 'social-photo-fe
 }
 wp_register_style($cssKey, false, [], true);
 wp_enqueue_style($cssKey);
-wp_add_inline_style($cssKey, wp_strip_all_tags($cssContent));
+wp_add_inline_style($cssKey, trustindex_esc_css($cssContent));
 }
 else {
 wp_enqueue_style($cssKey);
@@ -3289,9 +3289,13 @@ global $menu, $submenu;
 $permission = 'edit_pages';
 $adminPageUrl = $this->getPluginSlug() . "/admin.php";
 $adminPageTitle = $this->platformName . ' Feed';
+$menuBadge = '';
+if ($this->getNotificationParam('token-expired', 'active', false)) {
+$menuBadge = '<span class="update-plugins count-1" style="position:absolute;"><span class="plugin-count">1</span></span>';
+}
 add_menu_page(
 $adminPageTitle,
-$adminPageTitle,
+$adminPageTitle.$menuBadge,
 $permission,
 $adminPageUrl,
 '',
@@ -3301,16 +3305,25 @@ $this->getPluginFileUrl('assets/img/trustindex-sign-logo.png')
 public function addPluginActionLinks($links, $file)
 {
 if (basename($file) === $this->getPluginSlug() . '.php') {
-$newItem2 = '<a target="_blank" href="https://www.trustindex.io" target="_blank">by <span style="background-color: #4067af; color: white; font-weight: bold; padding: 1px 8px;">Trustindex.io</span></a>';
-$newItem1 = '<a href="' . admin_url('admin.php?page=' . $this->getPluginSlug() . '/admin.php') . '">' . __('Settings', 'social-photo-feed-widget') . '</a>';
-array_unshift($links, $newItem2, $newItem1);
+$platformLink = '<a style="background-color: #1a976a; color: white; font-weight: bold; padding: 1px 8px; border-radius: 4px; position: relative" href="'.admin_url('admin.php?page='.$this->getPluginSlug().'/admin.php').'">';
+if (!get_option($this->getOptionName('source'), 0)) {
+/* translators: %s: Platform name */
+$platformLink .= sprintf(__('Connect %s', 'social-photo-feed-widget'), $this->platformName);
+} elseif (!get_option($this->getOptionName('css-content'), 0)) {
+ $platformLink .= __('Create Widget', 'social-photo-feed-widget');
+} else {
+$platformLink .= __('Widget Settings', 'social-photo-feed-widget');
+}
+$platformLink .= '</a>';
+array_unshift($links, $platformLink);
 }
 return $links;
 }
 public function addPluginMetaLinks($meta, $file)
 {
 if (basename($file) === $this->getPluginSlug() . '.php') {
-$meta[] = '<a href="http://wordpress.org/support/view/plugin-reviews/'. $this->getPluginSlug() .'" target="_blank" rel="noopener noreferrer">'. __('Rate our plugin', 'social-photo-feed-widget') . '</a>';
+$meta[] = '<a href="'. admin_url('admin.php?page=' . $this->getPluginSlug() . '/admin.php&tab=get-more-features') .'">'.__('Get more Features', 'social-photo-feed-widget').' →</a>';
+$meta[] = '<a href="http://wordpress.org/support/view/plugin-reviews/'. $this->getPluginSlug() .'" target="_blank" rel="noopener noreferrer">'.__('Rate our plugin', 'social-photo-feed-widget').' <span style="color: #F6BB07; font-size: 1.2em; line-height: 1; position: relative; top: 0.05em;">★★★★★</span></a>';
 }
 return $meta;
 }
@@ -3420,6 +3433,14 @@ sprintf(__('Your %1$s Access Token expired on %2$s.', 'social-photo-feed-widget'
 __('Please renew your token by clicking the "Reconnect" button on the Connect Page.', 'social-photo-feed-widget').'<br />'.
 /* translators: %s: Platform name */
 sprintf(__('This will ensure that your %s Feed Widget continues to update automatically.', 'social-photo-feed-widget'), ucfirst($this->getShortName())),
+ 'short-message' =>
+ '<img src="'. esc_url(str_replace('%platform%', ucfirst($this->getShortName()), 'https://cdn.trustindex.io/assets/platform/%platform%/icon-feed.svg')) .'" alt="' . ucfirst($this->getShortName()) . '" />'.
+ '<p>'.
+ '<strong>' . __('Important: ', 'social-photo-feed-widget') . '</strong>'.
+ /* translators: %s: Platform name */
+ sprintf(__('We can no longer update the posts in your %s feed widget.', 'social-photo-feed-widget'), ucfirst($this->getShortName())).
+ '<br/><a href="#">'. __('Click here to reconnect', 'social-photo-feed-widget') .'</a>'.
+ '</p>',
 ]
 ];
 return $type ? $list[$type] : $list;

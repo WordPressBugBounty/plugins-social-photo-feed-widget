@@ -22,7 +22,8 @@ $options = $pluginManagerInstance->getNotificationOptions($type);
 if (isset($_GET['action'])) {
 switch (sanitize_text_field(wp_unslash($_GET['action']))) {
 case 'later':
-$pluginManagerInstance->setNotificationParam($type, 'timestamp', time() + (14 * 86400));
+$remindDays = isset($_GET['remind-days']) ? (int)$_GET['remind-days'] : 14;
+$pluginManagerInstance->setNotificationParam($type, 'timestamp', time() + ($remindDays * 86400));
 break;
 case 'close':
 if ($options['hide-on-close']) {

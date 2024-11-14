@@ -44,7 +44,7 @@ Allow URL fopen: <?php echo esc_html(ini_get('allow_url_fopen') ? 'On' : 'Off') 
 Allow URL Include: <?php echo esc_html(ini_get('allow_url_include') ? 'On' : 'Off') . "\n\t"; ?>
 Display Errors: <?php echo esc_html(ini_get('display_errors') ? 'On' : 'Off') . "\n\t"; ?>
 Max Script Execution Time: <?php echo esc_html($maxExecute) . " seconds\n\t"; ?>
-WP_HTTP_BLOCK_EXTERNAL: <?php echo esc_html(defined('WP_HTTP_BLOCK_EXTERNAL') ? var_export(WP_HTTP_BLOCK_EXTERNAL, true) : 'not defined') . "\n\t"; ?>
+WP_HTTP_BLOCK_EXTERNAL: <?php echo esc_html(defined('WP_HTTP_BLOCK_EXTERNAL') ? wp_json_encode(WP_HTTP_BLOCK_EXTERNAL) : 'not defined') . "\n\t"; ?>
 WP_ACCESSIBLE_HOSTS: <?php echo esc_html(defined('WP_ACCESSIBLE_HOSTS') ? WP_ACCESSIBLE_HOSTS : 'not defined') . "\n"; ?>
 Plugin: <?php echo esc_html($pluginData['Name']) ."\n"; ?>
 Plugin Version: <?php echo esc_html($pluginData['Version']) ."\n"; ?>
@@ -58,7 +58,7 @@ if ($optName === 'page-details' || is_array($option)) {
 if (isset($option['reviews'])) {
 unset($option['reviews']);
 }
-echo esc_html(str_replace("\n", "\n\t\t", print_r($option, true)));
+echo esc_html(str_replace("\n", "\n\t\t", wp_json_encode($option, JSON_PRETTY_PRINT)));
 }
 else {
 echo esc_html($option);
