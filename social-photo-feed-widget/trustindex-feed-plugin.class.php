@@ -3164,8 +3164,7 @@ else {
 wp_enqueue_style($cssKey);
 }
 }
-wp_enqueue_script('trustindex-feed-loader-js', 'https://cdn.trustindex.io/loader-feed.js', [], $this->getVersion(), [ 'in_footer' => true ]);
-$fn = function() use ($id, $feedData) {
+$enqueueLoader = function() use ($id, $feedData) {
 $data = [
 '@context' => 'http://schema.org',
 'container' => 'trustindex-feed-container-'. $id,
@@ -3173,9 +3172,10 @@ $data = [
 ];
 $data = 'script_content_start'. base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)) .'script_content_end';
 wp_enqueue_script('trustindex-feed-data-'. $id, 'https://cdn.trustindex.io/loader-feed.js', [], $id .'|wordpress'. $data, [ 'in_footer' => false ]);
+wp_enqueue_script('trustindex-feed-loader-js', 'https://cdn.trustindex.io/loader-feed.js', [], $this->getVersion(), [ 'in_footer' => true ]);
 };
-add_action('wp_footer', $fn);
-add_action('admin_footer', $fn);
+add_action('wp_footer', $enqueueLoader);
+add_action('admin_footer', $enqueueLoader);
 return '<div id="trustindex-feed-container-'. $id .'"></div>';
 }
 
