@@ -8,6 +8,10 @@ if (isset($_POST['data'])) {
 $source = $pluginManagerInstance->sanitizeJsonData($_POST['data']);
 }
 if ($source) {
+if (empty($source['feed_data']['posts'])) {
+header('Location: admin.php?page='.sanitize_text_field(wp_unslash($_GET['page'])).'&tab='.sanitize_text_field($selectedTab).'&error=no-posts');
+exit;
+}
 if ((int)$source['token_expires'] <= 0) {
 update_option($pluginManagerInstance->getOptionName('token-expires'), 0, false);
 } else {
@@ -195,6 +199,9 @@ echo esc_html(sprintf(__('This will ensure that your %s Feed Widget continues to
 <?php else: ?>
 
 <p><?php echo esc_html(__("Select the type of posts you'd like to display in your feed", 'social-photo-feed-widget')); ?></p>
+<?php if (isset($_GET['error']) && 'no-posts' === $_GET['error']): ?>
+<?php echo wp_kses_post($pluginManagerInstance::getAlertBox('error', __('The source you attempted to connect does not contain any posts. Please connect a different source.', 'social-photo-feed-widget'))); ?>
+<?php endif; ?>
 <form method="post" id="ti-connect-source-form">
 <?php wp_nonce_field('ti-connect-source'); ?>
 <input type="hidden" name="command" value="connect-source" />

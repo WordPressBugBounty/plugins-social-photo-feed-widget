@@ -262,7 +262,6 @@ $params[ $component ] = array_merge($param, $layoutParam);
 }
 }
 
-
 $params['type'] = 'custom-style';
 $data['style'] = array_merge($data['style'], $params);
 return $data;

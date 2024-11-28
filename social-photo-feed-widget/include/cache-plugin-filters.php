@@ -43,7 +43,8 @@ foreach (array (
  0 => 'instagram',
  1 => 'facebook',
  2 => 'youtube',
- 3 => 'tiktok',
+ 3 => 'twitter',
+ 4 => 'tiktok',
 ) as $platform) {
 $list []= 'trustindex-feed-widget-css-'. $platform;
 }

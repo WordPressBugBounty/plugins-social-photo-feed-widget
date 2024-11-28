@@ -32,7 +32,12 @@ WP Table Prefix: <?php echo esc_html($wpdb->prefix) ."\n"; ?>
 WP Version: <?php echo esc_html($wp_version) ."\n"; ?>
 <?php if (isset($_SERVER['SERVER_NAME'])): ?>Server Name: <?php echo esc_html(sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))) ."\n"; ?><?php endif; ?>
 Cookie Domain: <?php $cookieDomain = wp_parse_url(strtolower(get_bloginfo('wpurl'))); echo esc_html($cookieDomain['host']) ."\n"; ?>
-CURL Library Present: <?php echo esc_html(function_exists('curl_init') ? 'Yes' : 'No') ."\n"; ?>
+<?php if (function_exists('curl_version')): $curl = curl_version(); ?>
+cURL Version: <?php echo esc_html($curl['version'])."\n"; ?>
+SSL Version: <?php echo esc_html($curl['ssl_version'])."\n"; ?>
+<?php else: ?>
+cURL Library Present: No
+<?php endif; ?>
 <?php if (method_exists($pluginManagerInstance, 'getCssFile')): ?>CSS path: <?php echo esc_html($pluginManagerInstance->getCssFile()) ."\n"; ?><?php endif; ?>
 PHP Info: <?php echo "\n\t"; ?>
 Version: <?php echo esc_html(phpversion()) ."\n\t"; ?>
