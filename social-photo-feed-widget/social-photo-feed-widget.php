@@ -5,7 +5,7 @@ Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 Tags: instagram, feed, widget, photos, gallery
-Version: 1.4.9
+Version: 1.5
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Contributors: trustindex
@@ -25,7 +25,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.4.9", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.5", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);

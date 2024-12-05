@@ -87,20 +87,22 @@ wp_redirect(admin_url('admin.php?page=' . $this->getPluginSlug() . '/admin.php')
 exit;
 }
 $tokenExpireTimestamp = (int)get_option($this->getOptionName('token-expires'));
+$isNotificationEnabled = $this->isNotificationEnabled('token-renew');
 if ($tokenExpireTimestamp &&
 $tokenExpireTimestamp < time() + (86400 * 7) &&
-$this->getNotificationParam('token-renew', 'do-check', true)
+($this->getNotificationParam('token-renew', 'do-check', true) || !$isNotificationEnabled)
 ) {
-$this->setNotificationParam('token-renew', 'active', true);
+$this->setNotificationParam('token-renew', 'active', $isNotificationEnabled);
 $this->setNotificationParam('token-renew', 'do-check', false);
 $this->setNotificationParam('token-expired', 'do-check', true);
 }
+$isNotificationEnabled = $this->isNotificationEnabled('token-expired');
 if ($tokenExpireTimestamp &&
 $tokenExpireTimestamp < time() &&
-$this->getNotificationParam('token-expired', 'do-check', true)
+($this->getNotificationParam('token-expired', 'do-check', true) || !$isNotificationEnabled)
 ) {
 $this->setNotificationParam('token-renew', 'active', false);
-$this->setNotificationParam('token-expired', 'active', true);
+$this->setNotificationParam('token-expired', 'active', $isNotificationEnabled);
 $this->setNotificationParam('token-expired', 'do-check', false);
 }
 }
@@ -3471,6 +3473,14 @@ if (
 (isset($notifications[ $type ]['timestamp']) && $notifications[ $type ]['timestamp'] > time())
 ) {
 return false;
+}
+return true;
+}
+public function isNotificationEnabled($type)
+{
+
+if (in_array($type, ['token-renew', 'token-expired'])) {
+return 'personal' !== substr(get_option($this->getOptionName('source'))['subtype'] ?? '', 0, 8);
 }
 return true;
 }

@@ -174,7 +174,7 @@ if ($avatarUrl): ?>
 <?php endif; ?>
 <a href="<?php echo esc_url(wp_nonce_url('?page='. esc_attr(sanitize_text_field(wp_unslash($_GET['page']))) .'&tab='. esc_attr($selectedTab) .'&command=disconnect-source', 'ti-disconnect-source')); ?>" class="ti-btn ti-btn-default ti-btn-loading-on-click"><?php echo esc_html(__('Disconnect', 'social-photo-feed-widget')); ?></a>
 </div>
-<?php if ($tokenExpireTimestamp = (int)get_option($pluginManagerInstance->getOptionName('token-expires'))): ?>
+<?php if ($pluginManagerInstance->isNotificationEnabled('token-renew') && $tokenExpireTimestamp = (int)get_option($pluginManagerInstance->getOptionName('token-expires'))): ?>
 <div class="ti-box ti-notice-<?php if ($tokenExpireTimestamp < time()): ?>error<?php elseif ($tokenExpireTimestamp < time() + (86400 * 7)): ?>warning<?php else: ?>info<?php endif; ?>">
 <p>
 <strong><?php
@@ -194,6 +194,13 @@ echo esc_html(sprintf(__('This will ensure that your %s Feed Widget continues to
 ?><br /><br />
 <a href="<?php echo esc_url('?page='. esc_attr(sanitize_text_field(wp_unslash($_GET['page']))) .'&tab='. esc_attr($selectedTab) .'&step=1&reconnect-source'); ?>" class="ti-btn ti-btn-loading-on-click"><?php echo esc_html(__('Go to Connect Page', 'social-photo-feed-widget')); ?></a>
 </p>
+</div>
+<?php endif; ?>
+
+<?php if ('personal' === substr($source['subtype'], 0, 8)): ?>
+<div class="ti-box ti-notice-warning">
+<strong><?php echo esc_html(__('Important: ', 'social-photo-feed-widget')); ?></strong>
+<p><?php echo esc_html(__('The Instagram Personal Account connection is no longer supported. This means your posts will not update. To continue using our services, please connect your profile as a Business Account via Facebook.', 'social-photo-feed-widget')); ?></p>
 </div>
 <?php endif; ?>
 <?php else: ?>
