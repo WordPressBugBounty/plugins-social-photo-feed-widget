@@ -75,7 +75,10 @@ $templateId = isset($_GET['template']) ? sanitize_text_field(wp_unslash($_GET['t
 update_option($pluginManagerInstance->getOptionName('template'), $templateId, false);
 delete_option($pluginManagerInstance->getOptionName('css-content'));
 $feedData = $pluginManagerInstance->getFeedData();
-$feedData['style'] = ['locales' => $feedData['style']['locales']];
+$feedData['style'] = [
+'locales' => $feedData['style']['locales'],
+'settings' => $feedData['style']['settings'],
+];
 $pluginManagerInstance->updateFeedDataWidthDefaultTemplateParams($feedData, $templateId);
 $pluginManagerInstance->saveFeedData($feedData, false);
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
@@ -272,7 +275,7 @@ $feedData = $pluginManagerInstance->getFeedData();
 $iframeUrl = 'https://admin.trustindex.io/widget/edit/layout_id/'. esc_attr($template) .'/source/'. esc_attr(ucfirst($pluginManagerInstance->getShortName())) .'/iframe/1/layout-set/'. esc_attr($feedData['style']['type']);
 ?>
 <script type="application/ld+json">{"@context":"http://schema.org","data":<?php echo wp_json_encode($feedData); ?>}</script>
-<iframe id="ti-admin-iframe" class="ti-narrow-iframe" name="ti-widget-editor-iframe" data-src="<?php echo esc_url($iframeUrl . '?version='. esc_attr($pluginManagerInstance->getVersion())); ?>" id="ti-admin-iframe" scrolling="no" allowfullscreen="true"></iframe>
+<iframe id="ti-admin-iframe" class="ti-narrow-iframe" name="ti-widget-editor-iframe" data-src="<?php echo esc_url($iframeUrl . '?version='. esc_attr($pluginManagerInstance->getVersion())); ?>" scrolling="no" allowfullscreen="true"></iframe>
 </form>
 <?php else: ?>
 <div class="ti-box ti-mb-2">

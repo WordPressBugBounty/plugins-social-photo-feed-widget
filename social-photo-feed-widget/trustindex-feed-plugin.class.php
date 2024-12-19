@@ -28,6 +28,13 @@ $tabs[] = [
 'slug' => 'feed-configurator',
 'name' => __('Feed Configurator', 'social-photo-feed-widget')
 ];
+if ($this->getConnectedSource()) {
+$tabs[] = [
+'place' => 'left',
+'slug' => 'my-posts',
+'name' => __('My Posts', 'social-photo-feed-widget')
+];
+}
 $tabs[] = [
 'place' => 'left',
 'slug' => 'get-more-features',
@@ -175,7 +182,10 @@ $data = [];
 if ($jsonStr = get_option($this->getOptionName('feed-data'), "")) {
 $data = json_decode($jsonStr, true);
 $data['style'] = array_merge($data['style'], [
-'settings' => [ 'platform_style' => ucfirst($this->getShortName()) ]
+'settings' => [
+'platform_style' => ucfirst($this->getShortName()),
+'hidden_posts' => $data['style']['settings']['hidden_posts'] ?? [],
+],
 ]);
 if (!isset($data['style']['type'])) {
 $data['style']['type'] = 'custom-style';
@@ -265,7 +275,13 @@ $params[ $component ] = array_merge($param, $layoutParam);
 }
 
 $params['type'] = 'custom-style';
-$data['style'] = array_merge($data['style'], $params);
+foreach ($params as $key => $value) {
+if (is_array($value)) {
+$data['style'][$key] = array_merge($data['style'][$key] ?? [], $value);
+} else {
+$data['style'][$key] = $value;
+}
+}
 return $data;
 }
 public function sanitizeJsonData($data, $decode = true)
@@ -3079,17 +3095,6 @@ public static $widgetParams = array (
  array (
  'enabled' => 'true',
  ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
  'summary' => 
  array (
  'author_name' => NULL,
@@ -3170,6 +3175,7 @@ $data = [
 '@context' => 'http://schema.org',
 'container' => 'trustindex-feed-container-'. $id,
 'data' => $feedData,
+'cssUrl' => $this->getCssUrl().'?'.filemtime($this->getCssFile()),
 ];
 $data = 'script_content_start'. base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)) .'script_content_end';
 wp_enqueue_script('trustindex-feed-data-'. $id, 'https://cdn.trustindex.io/loader-feed.js', [], $id .'|wordpress'. $data, [ 'in_footer' => false ]);
@@ -3189,6 +3195,14 @@ return $file;
 }
 $uploadDir = wp_upload_dir();
 return trailingslashit($uploadDir['basedir']) . $file;
+}
+private function getCssUrl()
+{
+$path = wp_upload_dir()['baseurl'] .'/'. $this->getCssFile(true);
+if (is_ssl()) {
+$path = str_replace('http://', 'https://', $path);
+}
+return $path;
 }
 public function handleCssFile()
 {

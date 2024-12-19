@@ -37,10 +37,6 @@ echo esc_html(sprintf(__('Add more posts to your widget from %s, etc. to enjoy m
 <?php echo esc_html(__('You can mix your posts from different platforms and display them in 1 feed widget.', 'social-photo-feed-widget')); ?>
 </li>
 <li>
-<strong><?php echo esc_html(__('Automatically update with new posts', 'social-photo-feed-widget')); ?></strong><br />
-<?php echo esc_html(__('Wordpress cannot update posts, but Trustindex can! As soon as you have new posts, Trustindex automatically adds them to your widget. Customers love fresh content!', 'social-photo-feed-widget')); ?>
-</li>
-<li>
 <strong><?php echo esc_html(__('Higher SEO', 'social-photo-feed-widget')); ?></strong><br />
 <?php echo esc_html(__('Your premium widgets will update every day with fresh content, so Google crawls your site more frequently - improving your SEO and search ranking in the long run.', 'social-photo-feed-widget')); ?>
 </li>
