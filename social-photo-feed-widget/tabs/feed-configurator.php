@@ -158,9 +158,9 @@ if ($source && !$isReconnectingSource): ?>
 <?php
 $feedData = $pluginManagerInstance->getFeedData();
 $avatarUrl = isset($feedData['sources']['feed-plugin']['user']['avatar_url']) ? $feedData['sources']['feed-plugin']['user']['avatar_url'] : "";
-if ($avatarUrl): ?>
-<img src="<?php echo esc_url($avatarUrl); ?>" />
-<?php endif; ?>
+if ($avatarUrl):
+echo wp_kses_post($pluginManagerInstance->displayImg($avatarUrl));
+endif; ?>
 <?php if (isset($source['name']) && $source['name']): ?>
 <div class="ti-source-info">
 <strong><?php echo esc_html($source['name']); ?></strong>
@@ -232,7 +232,7 @@ $connectUrl .= '/public_id/'.get_option($pluginManagerInstance->getOptionName('p
 <?php foreach ($pluginManager::$widgetCategories as $category): ?>
 <div class="ti-box">
 <div class="ti-box-header"><?php echo esc_html(ucfirst($category)); ?></div>
-<img src="<?php echo esc_url($pluginManagerInstance->getPluginFileUrl('assets/img/select-'. $category .'.png')); ?>" />
+<?php echo wp_kses_post($pluginManagerInstance->displayImg('assets/img/select-'. $category .'.png')); ?>
 <div class="ti-box-footer">
 <a href="<?php echo esc_url(wp_nonce_url('?page='. esc_attr(sanitize_text_field(wp_unslash($_GET['page']))) .'&tab='. esc_attr($selectedTab) .'&command=select-layout&layout='. esc_attr($category), 'ti-select-layout')); ?>" class="ti-btn ti-btn-loading-on-click"><?php echo esc_html(__('Select', 'social-photo-feed-widget')); ?></a>
 </div>

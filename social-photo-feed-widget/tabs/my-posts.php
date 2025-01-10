@@ -21,9 +21,9 @@ $posts = $feedData['posts'];
 <div class="ti-header-title"><?php echo esc_html(__('My Posts', 'social-photo-feed-widget')); ?></div>
 <div class="ti-box">
 <div class="ti-upgrade-notice">
-<strong><?php echo __('UPGRADE to PRO Features', 'social-photo-feed-widget'); ?></strong>
-<p><?php echo __('Get unlimited posts, multiple feed widgets with custom style settings, widget popups, and access to 9 social platforms – everything you need to showcase your content like a pro!', 'social-photo-feed-widget'); ?></p>
-<a class="ti-btn" href="https://www.trustindex.io/ti-redirect.php?a=sys&c=wp-feed-pro" target="_blank"><?php echo __('Create a Free Account for More Features', 'social-photo-feed-widget'); ?></a>
+<strong><?php echo esc_html(__('UPGRADE to PRO Features', 'social-photo-feed-widget')); ?></strong>
+<p><?php echo esc_html(__('Get unlimited posts, multiple feed widgets with custom style settings, widget popups, and access to 9 social platforms – everything you need to showcase your content like a pro!', 'social-photo-feed-widget')); ?></p>
+<a class="ti-btn" href="https://www.trustindex.io/ti-redirect.php?a=sys&c=wp-instagram-feed-pro" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
 </div>
 <?php if (!count($posts)): ?>
 <div class="ti-notice ti-notice-warning">
@@ -53,7 +53,7 @@ $imgUrl = $post['media_content'][0]['image_url'];
 <td class="ti-text-center">
 <a href="<?php echo esc_url($post['url']); ?>" target="_blank">
 <?php if ($imgUrl): ?>
-<img src="<?php echo esc_url($imgUrl); ?>" class="ti-post-preview" />
+<?php echo wp_kses_post($pluginManagerInstance->displayImg($imgUrl, array('class' => 'ti-post-preview'))); ?>
 <?php else: ?>
 [<?php echo esc_html(__('Redirect to the post', 'social-photo-feed-widget')); ?>]
 <?php endif; ?>

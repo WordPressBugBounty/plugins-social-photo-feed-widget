@@ -1,7 +1,5 @@
 <?php
 defined('ABSPATH') or die('No script kiddies please!');
-require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'file.php');
-WP_Filesystem();
 if (isset($_REQUEST['command'])) {
 if ($_REQUEST['command'] === 're-create') {
 check_admin_referer('ti-recreate');
@@ -33,7 +31,7 @@ exit;
 }
 $yesIcon = '<span class="dashicons dashicons-yes-alt"></span>';
 $noIcon = '<span class="dashicons dashicons-dismiss"></span>';
-$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.6");
+$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.6.1");
 $cssInline = get_option($pluginManagerInstance->getOptionName('load-css-inline'), 0);
 $css = get_option($pluginManagerInstance->getOptionName('css-content'));
 ?>
@@ -65,14 +63,13 @@ $css = get_option($pluginManagerInstance->getOptionName('css-content'));
 CSS
 <ul>
 <li><?php
-$uploadDir = dirname($pluginManagerInstance->getCssFile());
-echo wp_kses_post(__('writing permission', 'social-photo-feed-widget') .' (<strong>'. $uploadDir .'</strong>): '. ($wp_filesystem->is_writable($uploadDir) ? $yesIcon : $noIcon)); ?>
+echo wp_kses_post(__('writing permission', 'social-photo-feed-widget') .' (<strong>'. dirname($pluginManagerInstance->getCssFile()) .'</strong>): '. ($pluginManagerInstance->isCssWriteable() ? $yesIcon : $noIcon)); ?>
 </li>
 <li>
 <?php echo esc_html(__('CSS content:', 'social-photo-feed-widget')); ?>
 <?php
 if (is_file($pluginManagerInstance->getCssFile())) {
-$content = $wp_filesystem->get_contents($pluginManagerInstance->getCssFile());
+$content = $pluginManagerInstance->getCssFileContent();
 if ($content === $css) {
 echo wp_kses_post($yesIcon);
 }

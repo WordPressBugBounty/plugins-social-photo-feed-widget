@@ -30,7 +30,7 @@ echo esc_html(sprintf(__("%d social feed platforms", 'social-photo-feed-widget')
 /* translators: %s: platform names comma separated */
 echo esc_html(sprintf(__('Add more posts to your widget from %s, etc. to enjoy more social content and to keep customers on your site for longer.', 'social-photo-feed-widget'), 'Facebook, Instagram, Twitter, TikTok, Google, YouTube, Pinterest, LinkedIn, Vimeo'));
 ?><br />
-<img src="<?php echo esc_url($pluginManagerInstance->getPluginFileUrl('assets/img/platforms.svg')); ?>" alt="" style="margin-top: 5px; height: 30px" />
+<?php echo wp_kses_post($pluginManagerInstance->displayImg('assets/img/platforms.svg', array('style' => 'margin-top: 5px; height: 30px'))); ?>
 </li>
 <li>
 <strong><?php echo esc_html(__('Mix social feeds', 'social-photo-feed-widget')); ?></strong><br />
@@ -57,9 +57,9 @@ echo esc_html(sprintf(__('Add more posts to your widget from %s, etc. to enjoy m
 <?php echo esc_html(__('Adjust every element of the feed widget to your brand: style, color, size, fonts and more.', 'social-photo-feed-widget')); ?>
 </li>
 </ul>
-<a class="ti-btn" href="https://www.trustindex.io/url=/feed-widgets&ti-redirect.php?a=sys&c=<?php echo esc_attr($tiCampaign2); ?>" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
+<a class="ti-btn" href="https://www.trustindex.io/ti-redirect.php?url=/feed-widgets&ti-redirect.php?a=sys&c=<?php echo esc_attr($tiCampaign2); ?>" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
 <div class="ti-special-offer">
-<img src="<?php echo esc_url($pluginManagerInstance->getPluginFileUrl('assets/img/special_30.jpg')); ?>">
+<?php echo wp_kses_post($pluginManagerInstance->displayImg('assets/img/special_30.jpg')); ?>
 <p><?php echo esc_html(__('Now we offer you a 30%% discount off your subscription! Create your free account and benefit from the onboarding discount now!', 'social-photo-feed-widget')); ?></p>
 <div class="clear"></div>
 </div>

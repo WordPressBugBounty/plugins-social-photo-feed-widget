@@ -45,6 +45,7 @@ foreach (array (
  2 => 'youtube',
  3 => 'twitter',
  4 => 'tiktok',
+ 5 => 'pinterest',
 ) as $platform) {
 $list []= 'trustindex-feed-widget-css-'. $platform;
 }
@@ -55,4 +56,16 @@ $list []= 'trustindex-(.*).css';
 $list []= '.ti-widget';
 return $list;
 });
+add_filter('script_loader_tag', function($tag) {
+if (strpos($tag, 'trustindex') !== false && strpos($tag, '/loader') !== false) {
+$tag = preg_replace('/ (crossorigin|integrity)=[\'"][^\'"]+[\'"]/m', '', $tag);
+}
+return $tag;
+}, 9999999);
+add_filter('style_loader_tag', function($tag) {
+if (strpos($tag, 'trustindex') !== false && strpos($tag, '/assets/widget-presetted-css/') !== false) {
+$tag = preg_replace('/ (crossorigin|integrity)=[\'"][^\'"]+[\'"]/m', '', $tag);
+}
+return $tag;
+}, 9999999);
 ?>

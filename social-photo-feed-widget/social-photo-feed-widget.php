@@ -5,7 +5,7 @@ Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 Tags: instagram, feed, widget, photos, gallery
-Version: 1.6
+Version: 1.6.1
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Contributors: trustindex
@@ -25,7 +25,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.6", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.6.1", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);
@@ -73,6 +73,9 @@ $tag = preg_replace(array_keys($replace), array_values($replace), $tag);
 return $tag;
 }, 10, 3);
 add_action('admin_notices', function() use ($pluginManagerInstance) {
+if (!current_user_can($pluginManagerInstance::$permissionNeeded)) {
+return;
+}
 foreach ($pluginManagerInstance->getNotificationOptions() as $type => $options) {
 if (!$pluginManagerInstance->isNotificationActive($type)) {
 continue;
@@ -112,7 +115,7 @@ echo '
 }
 });
 add_action('elementor/widgets/widgets_registered', function ($widgetsManager) {
-require_once(__DIR__ . '/include/elementor-widgets.php');
+require_once(__DIR__ . '/include/trustindex-elementor-widgets.php');
 $widgetsManager->register(new \Elementor\TrustrindexFeedWidget_Instagram());
 });
 add_action('elementor/elements/categories_registered', function ($elementsManager) {
@@ -125,7 +128,7 @@ $elementsManager->add_category(
 );
 });
 add_action('wp_enqueue_scripts', function() use ($pluginManagerInstance) {
-if (!is_user_logged_in()) {
+if (!is_user_logged_in() || !current_user_can($pluginManagerInstance::$permissionNeeded)) {
 return;
 }
 foreach ($pluginManagerInstance->getNotificationOptions() as $type => $options) {

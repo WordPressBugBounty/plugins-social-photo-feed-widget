@@ -6,6 +6,7 @@ private $pluginName;
 private $platformName;
 private $version;
 private $shortname;
+public static $permissionNeeded = 'edit_pages';
 public function __construct($shortname, $pluginFilePath, $version, $pluginName, $platformName)
 {
 $this->shortname = $shortname;
@@ -59,6 +60,24 @@ $appendMark = strpos($url, '?') === FALSE ? '?' : '&';
 $url .= $appendMark . 'ver=' . $this->getVersion();
 }
 return $url;
+}
+public function displayImg($image_url, $attributes = array())
+{
+if (0 !== strpos($image_url, 'http')) {
+$image_url = $this->getPluginFileUrl($image_url);
+}
+$defaults = array(
+'src' => esc_url($image_url),
+'alt' => '',
+'class' => '',
+'style' => '',
+);
+$attributes = wp_parse_args($attributes, $defaults);
+$attr_string = '';
+foreach ($attributes as $key => $value) {
+$attr_string .= sprintf(' %s="%s"', esc_attr($key), esc_attr($value));
+}
+return sprintf('<img%s />', $attr_string);
 }
 public function getPluginSlug()
 {
@@ -3204,6 +3223,38 @@ $path = str_replace('http://', 'https://', $path);
 }
 return $path;
 }
+private function getFilesystemApi($url)
+{
+$creds = request_filesystem_credentials($url, '', false, false, null);
+if (false === $creds) {
+return null;
+}
+if (!function_exists('WP_Filesystem')) {
+require_once(ABSPATH.'wp-admin'.DIRECTORY_SEPARATOR.'includes'.DIRECTORY_SEPARATOR.'file.php');
+}
+if (!WP_Filesystem($creds)) {
+request_filesystem_credentials($url, '', true, false, null);
+return null;
+}
+global $wp_filesystem;
+return $wp_filesystem;
+}
+public function getCssFileContent()
+{
+$wp_filesystem = $this->getFilesystemApi($this->getCssFile());
+if (!$wp_filesystem) {
+return null;
+}
+return $wp_filesystem->get_contents($this->getCssFile());
+}
+public function isCssWriteable()
+{
+$wp_filesystem = $this->getFilesystemApi($this->getCssFile());
+if (!$wp_filesystem) {
+return null;
+}
+return $wp_filesystem->is_writable(dirname($this->getCssFile()));
+}
 public function handleCssFile()
 {
 $css = get_option($this->getOptionName('css-content'));
@@ -3221,18 +3272,16 @@ if ($fileExists && !is_readable($this->getCssFile())) {
 $errorType = 'permission';
 }
 else {
-require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'file.php');
-global $wp_filesystem;
 add_filter('filesystem_method', array($this, 'filterFilesystemMethod'));
-WP_Filesystem();
-if ($fileExists && $css === $wp_filesystem->get_contents($this->getCssFile())) {
+if ($fileExists && $css === $this->getCssFileContent()) {
 return;
 }
 set_error_handler(function ($errSeverity, $errMsg, $errFile, $errLine, $errContext = []) {
 throw new ErrorException(wp_kses_post($errMsg), 0, esc_html($errSeverity), esc_html($errFile), esc_html($errLine));
 }, E_WARNING);
 try {
-$success = $wp_filesystem->put_contents($this->getCssFile(), $css, 0777);
+$wp_filesystem = $this->getFilesystemApi($this->getCssFile());
+$success = $wp_filesystem && $wp_filesystem->put_contents($this->getCssFile(), $css, 0777);
 }
 catch (Exception $e) {
 if (strpos($e->getMessage(), 'Permission denied') !== FALSE) {
@@ -3384,7 +3433,7 @@ return '<div style="margin:20px 0px; padding:10px; '. $types[ $type ]['css'] .' 
 }
 public function errorBoxForAdmins($text)
 {
-if (!current_user_can('manage_options')) {
+if (!current_user_can(self::$permissionNeeded)) {
 return "";
 }
 return self::getAlertBox('error', ' @ <strong>Trustindex plugin</strong> <i style="opacity: 0.65">('. __('This message is not be visible to visitors in public mode.', 'social-photo-feed-widget') .')</i><br /><br />'. $text, false);
@@ -3449,7 +3498,7 @@ __('Please renew your token by clicking the "Reconnect" button on the Connect Pa
 /* translators: %s: Platform name */
 sprintf(__('This will ensure that your %s Feed Widget continues to update automatically.', 'social-photo-feed-widget'), ucfirst($this->getShortName())),
  'short-message' =>
- '<img src="'. esc_url(str_replace('%platform%', ucfirst($this->getShortName()), 'https://cdn.trustindex.io/assets/platform/%platform%/icon-feed.svg')) .'" alt="' . ucfirst($this->getShortName()) . '" />'.
+$this->displayImg(str_replace('%platform%', ucfirst($this->getShortName()), 'https://cdn.trustindex.io/assets/platform/%platform%/icon-feed.svg'), array('alt' => ucfirst($this->getShortName()))).
  '<p>'.
  '<strong>' . __('Important: ', 'social-photo-feed-widget') . '</strong>'.
  /* translators: %s: Platform name */
