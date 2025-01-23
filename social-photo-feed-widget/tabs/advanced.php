@@ -5,7 +5,9 @@ if ($_REQUEST['command'] === 're-create') {
 check_admin_referer('ti-recreate');
 $pluginManagerInstance->uninstall();
 $pluginManagerInstance->activate();
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])));
+}
 exit;
 }
 else if ($_REQUEST['command'] === 'toggle-css-inline') {
@@ -16,7 +18,9 @@ if ($v && is_file($pluginManagerInstance->getCssFile())) {
 wp_delete_file($pluginManagerInstance->getCssFile());
 }
 $pluginManagerInstance->handleCssFile();
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=advanced');
+}
 exit;
 }
 else if ($_REQUEST['command'] === 'delete-css-file') {
@@ -25,13 +29,15 @@ if (is_file($pluginManagerInstance->getCssFile())) {
 wp_delete_file($pluginManagerInstance->getCssFile());
 }
 $pluginManagerInstance->handleCssFile();
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=advanced');
+}
 exit;
 }
 }
 $yesIcon = '<span class="dashicons dashicons-yes-alt"></span>';
 $noIcon = '<span class="dashicons dashicons-dismiss"></span>';
-$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.6.1");
+$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.6.2");
 $cssInline = get_option($pluginManagerInstance->getOptionName('load-css-inline'), 0);
 $css = get_option($pluginManagerInstance->getOptionName('css-content'));
 ?>
@@ -73,7 +79,7 @@ $content = $pluginManagerInstance->getCssFileContent();
 if ($content === $css) {
 echo wp_kses_post($yesIcon);
 }
-else {
+elseif (isset($_GET['page'])) {
 echo wp_kses_post($noIcon .' '. __('corrupted', 'social-photo-feed-widget')) .'
 <div class="ti-notice ti-notice-warning">
 <p><a href="'. esc_url(wp_nonce_url('?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=advanced&command=delete-css-file', 'ti-delete-css')) .'">'.
@@ -87,10 +93,12 @@ else {
 echo wp_kses_post($noIcon);
 }
 ?>
+<?php if (isset($_GET['page'])): ?>
 <span class="ti-checkbox ti-checkbox-row" style="margin-top: 5px">
 <input type="checkbox" value="1" <?php if ($cssInline): ?>checked<?php endif;?> onchange="window.location.href = '?page=<?php echo esc_attr(sanitize_text_field(wp_unslash($_GET['page']))); ?>&tab=advanced&_wpnonce=<?php echo esc_attr(wp_create_nonce('ti-toggle-css')); ?>&command=toggle-css-inline&value=' + (this.checked ? 1 : 0)">
 <label><?php echo esc_html(__('Enable CSS internal loading', 'social-photo-feed-widget')); ?></label>
 </span>
+<?php endif; ?>
 </li>
 </ul>
 </li>
@@ -155,7 +163,9 @@ echo wp_kses_post(sprintf(__('If you have an (webserver) error log, you can copy
 <div class="ti-box">
 <div class="ti-box-header"><?php echo esc_html(__('Re-create plugin', 'social-photo-feed-widget')); ?></div>
 <p><?php echo wp_kses_post(__('Re-create the database tables of the plugin.<br />Please note: this removes all settings and reviews.', 'social-photo-feed-widget')); ?></p>
+<?php if (isset($_GET['page'])): ?>
 <a href="<?php echo esc_url(wp_nonce_url('?page='. sanitize_text_field(wp_unslash($_GET['page'])) .'&tab=advanced&command=re-create', 'ti-recreate')); ?>" class="ti-btn ti-btn-loading-on-click ti-pull-right"><?php echo esc_html(__('Re-create plugin', 'social-photo-feed-widget')); ?></a>
+<?php endif; ?>
 <div class="clear"></div>
 </div>
 <div class="ti-box">

@@ -5,7 +5,7 @@ Tags: instagram, feed, widget, photos, gallery
 Requires at least: 3.0.1
 Tested up to: 6.7
 Requires PHP: 5.2
-Stable tag: 1.6.1
+Stable tag: 1.6.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin Name: Widgets for Social Photo Feed
@@ -14,7 +14,7 @@ Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Text Domain: social-photo-feed-widget
-Version: 1.6.1
+Version: 1.6.2
 
 Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 
@@ -89,7 +89,9 @@ Why not display your other feeds, too? Check out our other free feed plugins:
 
 * <a href="https://wordpress.org/plugins/widgets-for-social-post-feed/" target="_blank">Facebook feed</a>
 * <a href="https://wordpress.org/plugins/widgets-for-youtube-video-feed/" target="_blank">Youtube feed</a>
+* <a href="https://wordpress.org/plugins/widgets-for-twitter-feed/" target="_blank">Twitter feed</a>
 * <a href="https://wordpress.org/plugins/widgets-for-tiktok-video-feed/" target="_blank">Tiktok feed</a>
+* <a href="https://wordpress.org/plugins/widgets-for-pinterest-feed/" target="_blank">Pinterest feed</a>
 
 ### Why do I need this Instagram feed plugin?
 

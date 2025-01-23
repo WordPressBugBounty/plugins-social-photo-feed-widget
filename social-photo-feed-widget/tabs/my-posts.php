@@ -13,7 +13,9 @@ $hiddenPosts[] = $id;
 }
 $feedData['style']['settings']['hidden_posts'] = $hiddenPosts;
 $pluginManagerInstance->saveFeedData($feedData, false);
+if (isset($_GET['page']) && isset($_GET['tab'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field(wp_unslash($_GET['tab'])));
+}
 exit;
 }
 $posts = $feedData['posts'];
@@ -74,6 +76,7 @@ $text = substr($text,0,120) . '...';
 ?>
 <div class="ti-review-content"><?php echo esc_html($text); ?></div>
 </td>
+<?php if (isset($_GET['page'])): ?>
 <td>
 <a href="<?php echo esc_url(wp_nonce_url('?page='. sanitize_text_field(wp_unslash($_GET['page'])) .'&tab=my-posts&toggle-hide='. esc_attr($post['id']), 'ti-toggle-hide')); ?>" class="ti-btn ti-btn-sm ti-btn-default btn-toggle-hide">
 <?php if ($isHidden): ?>
@@ -83,6 +86,7 @@ $text = substr($text,0,120) . '...';
 <?php endif; ?>
 </a>
 </td>
+<?php endif; ?>
 </tr>
 <?php endforeach; ?>
 </tbody>

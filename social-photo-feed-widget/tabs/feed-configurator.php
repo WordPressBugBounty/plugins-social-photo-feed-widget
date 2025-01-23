@@ -5,17 +5,17 @@ if ($_REQUEST['command'] === 'connect-source') {
 check_admin_referer('ti-connect-source');
 $source = null;
 if (isset($_POST['data'])) {
-$source = $pluginManagerInstance->sanitizeJsonData($_POST['data']);
+$source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
 }
 if ($source) {
-if (empty($source['feed_data']['posts'])) {
-header('Location: admin.php?page='.sanitize_text_field(wp_unslash($_GET['page'])).'&tab='.sanitize_text_field($selectedTab).'&error=no-posts');
-exit;
-}
 if ((int)$source['token_expires'] <= 0) {
 update_option($pluginManagerInstance->getOptionName('token-expires'), 0, false);
 } else {
 update_option($pluginManagerInstance->getOptionName('token-expires'), time() + (int)$source['token_expires'], false);
+}
+if (empty($source['feed_data']['posts']) && isset($_GET['page'])) {
+header('Location: admin.php?page='.sanitize_text_field(wp_unslash($_GET['page'])).'&tab='.sanitize_text_field($selectedTab).'&error=no-posts');
+exit;
 }
 if (isset($source['is_reconnecting']) && $source['is_reconnecting']) {
 $pluginManagerInstance->updateFeedData($source['feed_data']);
@@ -41,7 +41,9 @@ $pluginManagerInstance->setNotificationParam('token-renew', 'do-check', true);
 $pluginManagerInstance->setNotificationParam('token-expired', 'active', false);
 $pluginManagerInstance->setNotificationParam('token-expired', 'do-check', true);
 }
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
+}
 exit;
 }
 else if ($_REQUEST['command'] === 'disconnect-source') {
@@ -57,7 +59,9 @@ delete_option($pluginManagerInstance->getOptionName('template'));
 delete_option($pluginManagerInstance->getOptionName('css-content'));
 $pluginManagerInstance->setNotificationParam('token-renew', 'active', false);
 $pluginManagerInstance->setNotificationParam('token-expired', 'active', false);
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
+}
 exit;
 }
 else if ($_REQUEST['command'] === 'select-layout') {
@@ -66,7 +70,9 @@ $layout = isset($_GET['layout']) ? sanitize_text_field(wp_unslash($_GET['layout'
 update_option($pluginManagerInstance->getOptionName('layout'), $layout, false);
 delete_option($pluginManagerInstance->getOptionName('template'));
 delete_option($pluginManagerInstance->getOptionName('css-content'));
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
+}
 exit;
 }
 else if ($_REQUEST['command'] === 'select-template') {
@@ -81,14 +87,16 @@ $feedData['style'] = [
 ];
 $pluginManagerInstance->updateFeedDataWidthDefaultTemplateParams($feedData, $templateId);
 $pluginManagerInstance->saveFeedData($feedData, false);
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
+}
 exit;
 }
 else if ($_REQUEST['command'] === 'save-feed-widget') {
 check_admin_referer('ti-save-feed-widget');
 $data = null;
 if (isset($_POST['data'])) {
-$data = $pluginManagerInstance->sanitizeJsonData($_POST['data']);
+$data = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
 }
 if ($data) {
 $data['css'] = preg_replace('/\.ti-widget([\s\.\[])/', '.ti-widget[data-wkey="feed-'. $pluginManagerInstance->getShortName() .'"]$1', $data['css']);
@@ -97,7 +105,9 @@ unset($data['css']);
 $pluginManagerInstance->saveFeedData($data, false);
 $pluginManagerInstance->handleCssFile();
 }
+if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
+}
 exit;
 }
 }
@@ -107,7 +117,7 @@ $css = get_option($pluginManagerInstance->getOptionName('css-content'));
 $isReconnectingSource = isset($_GET['reconnect-source']);
 ?>
 <?php
-$stepUrl = '?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=feed-configurator&step=%step%';
+$stepUrl = '?' . (isset($_GET['page']) ? 'page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&' : '') . 'tab=feed-configurator&step=%step%';
 $stepList = [
 /* translators: %s: Platform name */
 sprintf(__('Connect %s', 'social-photo-feed-widget'), 'Instagram'),
@@ -175,7 +185,9 @@ endif; ?>
 <?php endif; ?>
 </div>
 <?php endif; ?>
+<?php if (isset($_GET['page'])): ?>
 <a href="<?php echo esc_url(wp_nonce_url('?page='. esc_attr(sanitize_text_field(wp_unslash($_GET['page']))) .'&tab='. esc_attr($selectedTab) .'&command=disconnect-source', 'ti-disconnect-source')); ?>" class="ti-btn ti-btn-default ti-btn-loading-on-click"><?php echo esc_html(__('Disconnect', 'social-photo-feed-widget')); ?></a>
+<?php endif; ?>
 </div>
 <?php if ($pluginManagerInstance->isNotificationEnabled('token-renew') && $tokenExpireTimestamp = (int)get_option($pluginManagerInstance->getOptionName('token-expires'))): ?>
 <div class="ti-box ti-notice-<?php if ($tokenExpireTimestamp < time()): ?>error<?php elseif ($tokenExpireTimestamp < time() + (86400 * 7)): ?>warning<?php else: ?>info<?php endif; ?>">
@@ -195,7 +207,9 @@ echo esc_html(sprintf(__('Your %1$s Access Token expired on %2$s.', 'social-phot
 /* translators: %s: Platform name */
 echo esc_html(sprintf(__('This will ensure that your %s Feed Widget continues to update automatically.', 'social-photo-feed-widget'), 'Instagram'));
 ?><br /><br />
+<?php if (isset($_GET['page'])): ?>
 <a href="<?php echo esc_url('?page='. esc_attr(sanitize_text_field(wp_unslash($_GET['page']))) .'&tab='. esc_attr($selectedTab) .'&step=1&reconnect-source'); ?>" class="ti-btn ti-btn-loading-on-click"><?php echo esc_html(__('Go to Connect Page', 'social-photo-feed-widget')); ?></a>
+<?php endif; ?>
 </p>
 </div>
 <?php endif; ?>
@@ -233,9 +247,11 @@ $connectUrl .= '/public_id/'.get_option($pluginManagerInstance->getOptionName('p
 <div class="ti-box">
 <div class="ti-box-header"><?php echo esc_html(ucfirst($category)); ?></div>
 <?php echo wp_kses_post($pluginManagerInstance->displayImg('assets/img/select-'. $category .'.png')); ?>
+<?php if (isset($_GET['page'])): ?>
 <div class="ti-box-footer">
 <a href="<?php echo esc_url(wp_nonce_url('?page='. esc_attr(sanitize_text_field(wp_unslash($_GET['page']))) .'&tab='. esc_attr($selectedTab) .'&command=select-layout&layout='. esc_attr($category), 'ti-select-layout')); ?>" class="ti-btn ti-btn-loading-on-click"><?php echo esc_html(__('Select', 'social-photo-feed-widget')); ?></a>
 </div>
+<?php endif; ?>
 </div>
 <?php endforeach; ?>
 </div>
@@ -255,7 +271,9 @@ if ($template['is-active'] && $template['category'] === $layout):
 <div class="ti-box-header ti-box-header-normal">
 <?php echo esc_html(__('Template', 'social-photo-feed-widget')); ?>:
 <strong><?php echo esc_html($template['name']); ?></strong>
+<?php if (isset($_GET['page'])): ?>
 <a href="<?php echo esc_url(wp_nonce_url('?page='. esc_attr(sanitize_text_field(wp_unslash($_GET['page']))) .'&tab='. esc_attr($selectedTab) .'&command=select-template&template='. esc_attr($id), 'ti-select-template')); ?>" class="ti-btn ti-btn-sm ti-btn-loading-on-click ti-pull-right"><?php echo esc_html(__('Select', 'social-photo-feed-widget')); ?></a>
+<?php endif; ?>
 <div class="clear"></div>
 </div>
 <div class="preview"><?php echo wp_kses_post($pluginManagerInstance->getWidget($id)); ?></div>
