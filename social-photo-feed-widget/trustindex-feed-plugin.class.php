@@ -379,8 +379,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -530,8 +530,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -681,8 +681,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -833,8 +833,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -984,8 +984,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -1129,14 +1129,14 @@ public static $widgetTemplates = array (
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
  'widget-body-height' => '',
- 'header-font-size' => '14',
+ 'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -1151,7 +1151,7 @@ public static $widgetTemplates = array (
  'card-border-color' => '#dedede',
  'card-border-radius' => '0',
  'card-background-color' => '#ffffff',
- 'card-padding' => '15',
+ 'card-padding' => '20',
  'card-post-font-size' => '14',
  'card-header-font-size' => '14',
  'card-hover-background-color' => '#000000',
@@ -1286,8 +1286,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -1302,7 +1302,7 @@ public static $widgetTemplates = array (
  'card-border-color' => '#dedede',
  'card-border-radius' => '0',
  'card-background-color' => '#ffffff',
- 'card-padding' => '15',
+ 'card-padding' => '20',
  'card-post-font-size' => '14',
  'card-header-font-size' => '14',
  'card-hover-background-color' => '#000000',
@@ -1438,7 +1438,7 @@ public static $widgetTemplates = array (
  'header-padding-left' => '0',
  'header-padding-right' => '0',
  'header-profile-image-size' => '75',
- 'header-muted-color' => '#536471',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -1589,7 +1589,7 @@ public static $widgetTemplates = array (
  'header-padding-left' => '0',
  'header-padding-right' => '0',
  'header-profile-image-size' => '75',
- 'header-muted-color' => '#536471',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -1740,7 +1740,7 @@ public static $widgetTemplates = array (
  'header-padding-left' => '0',
  'header-padding-right' => '0',
  'header-profile-image-size' => '75',
- 'header-muted-color' => '#536471',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -1883,14 +1883,14 @@ public static $widgetTemplates = array (
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
  'widget-body-height' => '',
- 'header-font-size' => '14',
+ 'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '75',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '50',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -1905,7 +1905,7 @@ public static $widgetTemplates = array (
  'card-border-color' => '#dedede',
  'card-border-radius' => '0',
  'card-background-color' => '#ffffff',
- 'card-padding' => '15',
+ 'card-padding' => '20',
  'card-post-font-size' => '14',
  'card-header-font-size' => '14',
  'card-hover-background-color' => '#000000',
@@ -2034,7 +2034,7 @@ public static $widgetTemplates = array (
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
  'widget-body-height' => '',
- 'header-font-size' => '14',
+ 'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
  'header-padding-bottom' => '10',
@@ -2185,13 +2185,13 @@ public static $widgetTemplates = array (
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
  'widget-body-height' => '',
- 'header-font-size' => '14',
+ 'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '75',
+ 'header-profile-image-size' => '50',
  'header-muted-color' => '#555555',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
@@ -2207,7 +2207,7 @@ public static $widgetTemplates = array (
  'card-border-color' => '#dedede',
  'card-border-radius' => '8',
  'card-background-color' => '#ffffff',
- 'card-padding' => '15',
+ 'card-padding' => '20',
  'card-post-font-size' => '14',
  'card-header-font-size' => '14',
  'card-hover-background-color' => '#000000',
@@ -2336,13 +2336,13 @@ public static $widgetTemplates = array (
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
  'widget-body-height' => '',
- 'header-font-size' => '14',
+ 'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '75',
+ 'header-profile-image-size' => '50',
  'header-muted-color' => '#555555',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
@@ -2493,8 +2493,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -2644,8 +2644,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -2795,8 +2795,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -2946,8 +2946,8 @@ public static $widgetTemplates = array (
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '60',
- 'header-muted-color' => '#536471',
+ 'header-profile-image-size' => '55',
+ 'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#3578e5',
@@ -3069,7 +3069,7 @@ public static $widgetParams = array (
  'header' => 
  array (
  'enabled' => 'true',
- 'type' => '1',
+ 'type' => '3',
  'show_profile_picture' => 'true',
  'show_posts_number' => 'true',
  'show_full_name' => 'false',
@@ -3077,7 +3077,7 @@ public static $widgetParams = array (
  'show_username' => 'true',
  'show_follows_number' => 'false',
  'show_follow_button' => 'true',
- 'switch' => 'true',
+ 'switch' => 'false',
  ),
  'arrow' => 
  array (
@@ -3143,6 +3143,16 @@ public static $widgetParams = array (
  'selected_source_id' => '',
  'platform_style' => 'custom',
  'hide_copyright' => 'false',
+ 'post_filter_hide' => 'false',
+ 'post_ids' => 
+ array (
+ ),
+ 'included_tags' => 
+ array (
+ ),
+ 'excluded_tags' => 
+ array (
+ ),
  ),
 );
 public static $widgetHalfWidthLayouts = array (
@@ -3201,6 +3211,9 @@ return $this->errorBoxForAdmins(__('CSS file could not saved.', 'social-photo-fe
 }
 wp_register_style($cssKey, false, [], true);
 wp_enqueue_style($cssKey);
+/*
+This function ensures that CSS data is properly escaped. Since there is no native WordPress CSS escape function, we developed our own based on WordPress's built-in functions.
+*/
 wp_add_inline_style($cssKey, trustindex_esc_css($cssContent));
 }
 else {
@@ -3243,12 +3256,12 @@ return $path;
 }
 private function getFilesystemApi($url)
 {
+if (!function_exists('request_filesystem_credentials') || !function_exists('WP_Filesystem')) {
+return null;
+}
 $creds = request_filesystem_credentials($url, '', false, false, null);
 if (false === $creds) {
 return null;
-}
-if (!function_exists('WP_Filesystem')) {
-require_once(ABSPATH.'wp-admin'.DIRECTORY_SEPARATOR.'includes'.DIRECTORY_SEPARATOR.'file.php');
 }
 if (!WP_Filesystem($creds)) {
 request_filesystem_credentials($url, '', true, false, null);
@@ -3614,7 +3627,10 @@ public function getCdnVersionControl()
 {
 $data = get_option($this->getOptionName('cdn-version-control'), []);
 if (!$data || $data['last-saved-at'] < time() + 60) {
-$response = wp_remote_get('https://cdn.trustindex.io/version-control.json', [ 'timeout' => 60 ]);
+$response = wp_remote_get('https://cdn.trustindex.io/version-control.json', [
+'timeout' => 60,
+'sslverify' => false,
+]);
 if (!is_wp_error($response)) {
 $data = array_merge($data, json_decode($response['body'], true));
 }

@@ -43,9 +43,11 @@ foreach (array (
  0 => 'instagram',
  1 => 'facebook',
  2 => 'youtube',
- 3 => 'twitter',
- 4 => 'tiktok',
- 5 => 'pinterest',
+ 3 => 'google',
+ 4 => 'twitter',
+ 5 => 'tiktok',
+ 6 => 'pinterest',
+ 7 => 'vimeo',
 ) as $platform) {
 $list []= 'trustindex-feed-widget-css-'. $platform;
 }
@@ -63,7 +65,7 @@ $tag = preg_replace('/ (crossorigin|integrity)=[\'"][^\'"]+[\'"]/m', '', $tag);
 return $tag;
 }, 9999999);
 add_filter('style_loader_tag', function($tag) {
-if (strpos($tag, 'trustindex') !== false && strpos($tag, '/assets/widget-presetted-css/') !== false) {
+if (strpos($tag, 'trustindex') !== false && (strpos($tag, '/assets/widget-presetted-css/') !== false || strpos($tag, '/ti-preview-box.css') !== false)) {
 $tag = preg_replace('/ (crossorigin|integrity)=[\'"][^\'"]+[\'"]/m', '', $tag);
 }
 return $tag;

@@ -2,10 +2,8 @@
 Contributors: trustindex
 Donate link: https://www.trustindex.io/prices/
 Tags: instagram, feed, widget, photos, gallery
-Requires at least: 3.0.1
 Tested up to: 6.7
-Requires PHP: 5.2
-Stable tag: 1.6.2
+Stable tag: 1.6.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin Name: Widgets for Social Photo Feed
@@ -14,7 +12,7 @@ Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Text Domain: social-photo-feed-widget
-Version: 1.6.2
+Version: 1.6.3
 
 Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 
@@ -71,6 +69,7 @@ To maintain the free version of the plugin and offer quick support, we provide a
 * **Other social platforms** available: Instagram, Facebook, YouTube, TikTok, Google posts, Pinterest, Vimeo, X (Twitter)
 * Create aggregated widgets with **multiple social platforms**
 * Professional social feed **widget configurator**
+* **Post moderation**: filter posts by including/excluding specific hashtags and manually selecting posts for approval or removal.
 
 [Create a free account for more features!](https://www.trustindex.io/ti-redirect.php?url=/feed-widgets&a=sys-wp&c=feed-Instagram-r2)
 
@@ -89,6 +88,7 @@ Why not display your other feeds, too? Check out our other free feed plugins:
 
 * <a href="https://wordpress.org/plugins/widgets-for-social-post-feed/" target="_blank">Facebook feed</a>
 * <a href="https://wordpress.org/plugins/widgets-for-youtube-video-feed/" target="_blank">Youtube feed</a>
+* <a href="https://wordpress.org/plugins/widgets-for-google-feed/" target="_blank">Google feed</a>
 * <a href="https://wordpress.org/plugins/widgets-for-twitter-feed/" target="_blank">Twitter feed</a>
 * <a href="https://wordpress.org/plugins/widgets-for-tiktok-video-feed/" target="_blank">Tiktok feed</a>
 * <a href="https://wordpress.org/plugins/widgets-for-pinterest-feed/" target="_blank">Pinterest feed</a>

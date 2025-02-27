@@ -5,6 +5,9 @@ if ($_REQUEST['command'] === 'connect-source') {
 check_admin_referer('ti-connect-source');
 $source = null;
 if (isset($_POST['data'])) {
+/*
+This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
+*/
 $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
 }
 if ($source) {
@@ -96,6 +99,9 @@ else if ($_REQUEST['command'] === 'save-feed-widget') {
 check_admin_referer('ti-save-feed-widget');
 $data = null;
 if (isset($_POST['data'])) {
+/*
+This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
+*/
 $data = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
 }
 if ($data) {
