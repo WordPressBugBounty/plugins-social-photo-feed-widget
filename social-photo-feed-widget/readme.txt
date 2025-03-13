@@ -3,7 +3,7 @@ Contributors: trustindex
 Donate link: https://www.trustindex.io/prices/
 Tags: instagram, feed, widget, photos, gallery
 Tested up to: 6.7
-Stable tag: 1.6.3
+Stable tag: 1.6.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin Name: Widgets for Social Photo Feed
@@ -12,7 +12,7 @@ Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Text Domain: social-photo-feed-widget
-Version: 1.6.3
+Version: 1.6.4
 
 Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 

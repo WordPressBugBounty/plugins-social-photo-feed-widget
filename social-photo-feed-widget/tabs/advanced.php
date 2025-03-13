@@ -37,7 +37,7 @@ exit;
 }
 $yesIcon = '<span class="dashicons dashicons-yes-alt"></span>';
 $noIcon = '<span class="dashicons dashicons-dismiss"></span>';
-$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.6.3");
+$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.6.4");
 $cssInline = get_option($pluginManagerInstance->getOptionName('load-css-inline'), 0);
 $css = get_option($pluginManagerInstance->getOptionName('css-content'));
 ?>

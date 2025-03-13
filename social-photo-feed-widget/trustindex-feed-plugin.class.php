@@ -3572,11 +3572,8 @@ return true;
 }
 public function isNotificationEnabled($type)
 {
-
-if (in_array($type, ['token-renew', 'token-expired'])) {
-return 'personal' !== substr(get_option($this->getOptionName('source'))['subtype'] ?? '', 0, 8);
-}
-return true;
+$notifications = get_option($this->getOptionName('notifications'), []);
+return isset($notifications[$type]);
 }
 
 
