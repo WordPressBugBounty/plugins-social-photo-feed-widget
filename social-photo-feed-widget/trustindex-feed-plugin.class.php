@@ -154,9 +154,9 @@ load_plugin_textdomain($this->getPluginSlug(), false, $this->getPluginSlug() . D
 }
 
 
-public function getShortcodeName()
+public function getShortcodeName($isAdmin = false)
 {
-return 'trustindex-feed-'. $this->getShortName();
+return 'trustindex-feed'.($isAdmin ? '' : '-'.$this->getShortName());
 }
 public function shortcode()
 {
@@ -166,6 +166,13 @@ if (!$pluginManager->getConnectedSource()) {
 return $pluginManager->errorBoxForAdmins(__('You have to connect your source!', 'social-photo-feed-widget'));
 }
 return $pluginManager->getWidget();
+});
+add_shortcode($this->getShortcodeName(true), function($atts) use($pluginManager) {
+$atts = shortcode_atts(['widget-id' => null], $atts);
+if (!isset($atts['widget-id']) || !$atts['widget-id']) {
+return false;
+}
+return $this->getAdminWidget($atts['widget-id']);
 });
 }
 
@@ -1109,7 +1116,7 @@ public static $widgetTemplates = array (
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '1',
- 'infinity_loop' => 'false',
+ 'infinity_loop' => 'true',
  ),
  'custom_style' => 
  array (
@@ -1260,7 +1267,7 @@ public static $widgetTemplates = array (
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '2',
- 'infinity_loop' => 'false',
+ 'infinity_loop' => 'true',
  ),
  'custom_style' => 
  array (
@@ -1411,7 +1418,7 @@ public static $widgetTemplates = array (
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '1',
- 'infinity_loop' => 'false',
+ 'infinity_loop' => 'true',
  ),
  'custom_style' => 
  array (
@@ -1562,7 +1569,7 @@ public static $widgetTemplates = array (
  'cols_num' => '1',
  'loadmore' => 'true',
  'rows_num' => '1',
- 'infinity_loop' => 'false',
+ 'infinity_loop' => 'true',
  ),
  'custom_style' => 
  array (
@@ -3220,20 +3227,32 @@ else {
 wp_enqueue_style($cssKey);
 }
 }
-$enqueueLoader = function() use ($id, $feedData) {
+return $this->renderWidget($id, $feedData);
+}
+private function renderWidget($id, $feedData = null)
+{
+$containerId = 'trustindex-feed-container-'.$id;
+$enqueueLoader = function () use ($id, $feedData, $containerId) {
 $data = [
 '@context' => 'http://schema.org',
-'container' => 'trustindex-feed-container-'. $id,
-'data' => $feedData,
-'cssUrl' => $this->getCssUrl().'?'.filemtime($this->getCssFile()),
+'container' => $containerId,
 ];
-$data = 'script_content_start'. base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)) .'script_content_end';
-wp_enqueue_script('trustindex-feed-data-'. $id, 'https://cdn.trustindex.io/loader-feed.js', [], $id .'|wordpress'. $data, [ 'in_footer' => false ]);
-wp_enqueue_script('trustindex-feed-loader-js', 'https://cdn.trustindex.io/loader-feed.js', [], $this->getVersion(), [ 'in_footer' => true ]);
+$isWpWidget = isset($feedData);
+if ($isWpWidget) {
+$data['data'] = $feedData;
+$data['cssUrl'] = $this->getCssUrl().'?'.filemtime($this->getCssFile());
+}
+$data = 'script_content_start'.base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)).'script_content_end';
+wp_enqueue_script('trustindex-feed-data-'.$id, 'https://cdn.trustindex.io/loader-feed.js', [], $id.($isWpWidget ? '|wordpress' : '').$data, ['in_footer' => false]);
+wp_enqueue_script('trustindex-feed-loader-js', 'https://cdn.trustindex.io/loader-feed.js', [], $this->getVersion(), ['in_footer' => true]);
 };
 add_action('wp_footer', $enqueueLoader);
 add_action('admin_footer', $enqueueLoader);
-return '<div id="trustindex-feed-container-'. $id .'"></div>';
+return '<div id="'.$containerId.'"></div>';
+}
+public function getAdminWidget($id)
+{
+return $this->renderWidget($id);
 }
 
 
