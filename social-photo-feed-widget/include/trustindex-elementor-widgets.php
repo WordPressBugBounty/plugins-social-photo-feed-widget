@@ -18,7 +18,7 @@ public function get_categories() {
 return ['trustindex'];
 }
 protected function render() {
-$pluginManagerInstance = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.6.5", "Widgets for Social Photo Feed", "Instagram");
+$pluginManagerInstance = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.6.6", "Widgets for Social Photo Feed", "Instagram");
 echo do_shortcode('['.$pluginManagerInstance->getShortcodeName().']');
 }
 }

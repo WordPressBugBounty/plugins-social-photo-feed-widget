@@ -229,7 +229,7 @@ break 2;
 }
 }
 }
-if (!$data || $dataSaved > (24 * 3600) || !$allImageReplaced) {
+if (!$data || $dataSaved > (12 * 3600) || !$allImageReplaced) {
 $publicId = get_option($this->getOptionName('public-id'));
 if (!$publicId) {
 return $data;
