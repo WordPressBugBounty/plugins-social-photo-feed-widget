@@ -3072,6 +3072,8 @@ public static $widgetParams = array (
  'rows_num' => 3,
  'width' => 'lg',
  'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
  'header' => 
  array (
@@ -3241,6 +3243,7 @@ $isWpWidget = isset($feedData);
 if ($isWpWidget) {
 $data['data'] = $feedData;
 $data['cssUrl'] = $this->getCssUrl().'?'.filemtime($this->getCssFile());
+$data['pluginVersion'] = $this->getVersion();
 }
 $data = 'script_content_start'.base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)).'script_content_end';
 wp_enqueue_script('trustindex-feed-data-'.$id, 'https://cdn.trustindex.io/loader-feed.js', [], $id.($isWpWidget ? '|wordpress' : '').$data, ['in_footer' => false]);
