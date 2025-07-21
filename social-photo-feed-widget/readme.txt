@@ -3,7 +3,7 @@ Contributors: trustindex
 Donate link: https://www.trustindex.io/prices/
 Tags: instagram, feed, widget, photos, gallery
 Tested up to: 6.8
-Stable tag: 1.6.7
+Stable tag: 1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin Name: Widgets for Social Photo Feed
@@ -12,7 +12,7 @@ Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Text Domain: social-photo-feed-widget
-Version: 1.6.7
+Version: 1.7
 
 Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 
@@ -57,7 +57,7 @@ The WordPress Instagram plugin offers various layouts and styles to choose from 
 
 ### Get more features with our professional software
 
-[Create a free account for more features!](https://www.trustindex.io/ti-redirect.php?url=/feed-widgets&a=sys-wp&c=feed-Instagram-r1)
+[Create a free account for more features!](https://www.trustindex.io?url=/feed-widgets&a=sys-wp&c=feed-Instagram-r1)
 
 With the professional package, you&#039;ll be able to edit the widget with a wide range of options, so you can create a widget that best suits your brand. Besides that, you can also display feeds from many of the top social media platforms, including Facebook, YouTube, Pinterest, LinkedIn and more.
 
@@ -72,7 +72,7 @@ To maintain the free version of the plugin and offer quick support, we provide a
 * Professional social feed **widget configurator**
 * **Post moderation**: filter posts by including/excluding specific hashtags and manually selecting posts for approval or removal.
 
-[Create a free account for more features!](https://www.trustindex.io/ti-redirect.php?url=/feed-widgets&a=sys-wp&c=feed-Instagram-r2)
+[Create a free account for more features!](https://www.trustindex.io?url=/feed-widgets&a=sys-wp&c=feed-Instagram-r2)
 
 ### 8 Benefits of Instagram Feeds
 

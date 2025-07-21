@@ -56,11 +56,30 @@ jQuery(document).ready(function($) {
 
 					form = $('#ti-connect-source-form');
 					if (form.length) {
+						form.find('input[name="command"]').val(event.data.action);
 						form.find('input[name="data"]').val(JSON.stringify(event.data.data));
 						form.submit();
 						actionProcessing = true;
 					}
 
+					break;
+
+				case 'source-connecting':
+					if (actionProcessing) {
+						return false;
+					}
+
+					form = $('#ti-connect-source-form');
+					if (form.length) {
+						form.find('input[name="command"]').val(event.data.action);
+						form.find('input[name="data"]').val(JSON.stringify(event.data.data));
+						$.post(form.attr('action') || window.location.href, form.serialize());
+					}
+
+					break;
+
+				case 'source-connection-failed':
+					window.location.reload();
 					break;
 
 				// save feed
@@ -132,6 +151,17 @@ jQuery(document).ready(function($) {
 				}, '*');
 			});
 		}
+	}
+
+	let postPreviews = $('img.ti-post-preview');
+	if (postPreviews.length && typeof TrustindexFeed !== 'undefined' && typeof TrustindexFeed.getProxyMedia !== 'undefined') {
+		postPreviews.each(function() {
+			let img = $(this);
+			let src = img.attr('src');
+			if (-1 === src.indexOf('http')) {
+				img.attr('src', TrustindexFeed.getProxyMedia(src));
+			}
+		});
 	}
 });
 

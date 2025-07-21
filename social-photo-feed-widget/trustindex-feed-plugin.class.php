@@ -19,6 +19,26 @@ public function getShortName()
 {
 return $this->shortname;
 }
+public function getWebhookAction()
+{
+return 'trustindex_feed_hook_' . $this->getShortName();
+}
+public function getWebhookUrl()
+{
+$webhookUrl = rest_url($this->getWebhookAction());
+$response = wp_remote_get('https://admin.trustindex.io/api/testWordpressWebbookUrl?webhook=' . $webhookUrl, [
+'timeout' => 30,
+'sslverify' => false,
+]);
+if (is_wp_error($response)) {
+return null;
+}
+$json = json_decode($response['body'], true);
+if (!$json || !isset($json['valid']) || true !== $json['valid']) {
+return null;
+}
+return $webhookUrl;
+}
 
 
 public function getPluginTabs()
@@ -54,6 +74,10 @@ return plugin_dir_path($this->pluginFilePath);
 }
 public function getPluginFileUrl($file, $addVersioning = true)
 {
+$info = pathinfo($file);
+if (!isset($info['dirname'], $info['basename'], $info['extension'])) {
+return $file;
+}
 $url = plugins_url($file, $this->pluginFilePath);
 if ($addVersioning) {
 $appendMark = strpos($url, '?') === FALSE ? '?' : '&';
@@ -63,11 +87,12 @@ return $url;
 }
 public function displayImg($image_url, $attributes = array())
 {
-if (0 !== strpos($image_url, 'http')) {
+$isUrl = preg_match('#^https?://#i', $image_url);
+if (!$isUrl) {
 $image_url = $this->getPluginFileUrl($image_url);
 }
 $defaults = array(
-'src' => esc_url($image_url),
+'src' => $isUrl ? esc_url($image_url) : sanitize_text_field($image_url),
 'alt' => '',
 'class' => '',
 'style' => '',
@@ -165,7 +190,7 @@ add_shortcode($this->getShortcodeName(), function($atts) use($pluginManager) {
 if (!$pluginManager->getConnectedSource()) {
 return $pluginManager->errorBoxForAdmins(__('You have to connect your source!', 'social-photo-feed-widget'));
 }
-return $pluginManager->getWidget();
+return '<div id="'.$pluginManager->getContainerKey($pluginManager->getWidget()).'"></div>';
 });
 add_shortcode($this->getShortcodeName(true), function($atts) use($pluginManager) {
 $atts = shortcode_atts(['widget-id' => null], $atts);
@@ -290,6 +315,57 @@ break;
 $this->saveFeedData($newData);
 return $newData;
 }
+public function saveConnectedSource($source, $pageToRedirectOnError = null)
+{
+if (!$source) {
+return ['error' => 'no-source'];
+}
+if ((int)$source['token_expires'] <= 0) {
+update_option($this->getOptionName('token-expires'), 0, false);
+} else {
+update_option($this->getOptionName('token-expires'), time() + (int) $source['token_expires'], false);
+$this->setNotificationParam('token-renew', 'active', false);
+$this->setNotificationParam('token-renew', 'do-check', true);
+$this->setNotificationParam('token-expired', 'active', false);
+$this->setNotificationParam('token-expired', 'do-check', true);
+}
+if (empty($source['feed_data']['posts'])) {
+if (isset($pageToRedirectOnError)) {
+header('Location: admin.php?page='.sanitize_text_field(wp_unslash($pageToRedirectOnError)).'&error=no-posts');
+exit;
+}
+update_option(
+$this->getOptionName('connect-pending'),
+array_merge(
+get_option($this->getOptionName('connect-pending'), []),
+['error' => 'no-posts']
+),
+false
+);
+return ['error' => 'no-posts'];
+}
+if (isset($source['is_reconnecting']) && $source['is_reconnecting']) {
+$this->updateFeedData($source['feed_data']);
+$oldSource = $this->getConnectedSource();
+$oldSource['access_token'] = $source['access_token'];
+$source = $oldSource;
+} else {
+$this->saveFeedData($source['feed_data']);
+update_option($this->getOptionName('public-id'), $source['public_id'], false);
+unset($source['avatar_url']);
+unset($source['feed_data']);
+unset($source['token_expires']);
+unset($source['access_token_expires']);
+unset($source['public_id']);
+unset($source['is_reconnecting']);
+}
+if ($source['name']) {
+$source['name'] = wp_json_encode($source['name']);
+}
+update_option($this->getOptionName('source'), $source, false);
+delete_option($this->getOptionName('connect-pending'));
+return $source;
+}
 public function updateFeedDataWidthDefaultTemplateParams(&$data, $templateId)
 {
 $params = self::$widgetParams;
@@ -317,14 +393,26 @@ $data = json_decode($data, true);
 }
 foreach ($data as $key => $value) {
 if (is_array($value)) {
+if ('list' === $key) {
+$data[ $key ] = array_map(function ($item) {
+$item = explode('-', $item, 2);
+return implode('-', [sanitize_text_field($item[0]), $this->isUrl($item[1]) ? esc_url_raw($item[1]) : sanitize_text_field($item[1])]);
+}, $value);
+} else {
 $data[ $key ] = $this->sanitizeJsonData(wp_unslash($value), false);
+}
 continue;
 }
 switch ($key) {
 case 'profile_url':
 case 'image_url':
+case 'avatar_url':
 case 'url':
-$data[ $key ] = sanitize_url($value);
+if ($this->isUrl($value)) {
+$data[ $key ] = esc_url_raw($value);
+} else {
+$data[ $key ] = sanitize_text_field($value);
+}
 break;
 default:
 $data[ $key ] = sanitize_text_field($value);
@@ -332,6 +420,10 @@ break;
 }
 }
 return $data;
+}
+private function isUrl($url)
+{
+return preg_match('#^https?://#i', $url);
 }
 
 
@@ -3143,8 +3235,9 @@ public static $widgetParams = array (
  ),
  'summary' => 
  array (
- 'author_name' => NULL,
+ 'author_name' => '',
  'author_bio' => '',
+ 'avatar_url' => NULL,
  ),
  'settings' => 
  array (
@@ -3185,17 +3278,18 @@ return;
 if ($isPreview) {
 $this->updateFeedDataWidthDefaultTemplateParams($feedData, $templateId);
 $feedData['widget-key'] = $templateId;
-wp_enqueue_style('trustindex-feed-widget-css-'. $this->getShortName() .'-'. $id, 'https://cdn.trustindex.io/assets/widget-presetted-css/'. $templateId .'-'. ucfirst($this->platformName) .'.css', [], $this->getVersion());
+wp_enqueue_style($this->getCssKey($id), 'https://cdn.trustindex.io/assets/widget-presetted-css/'. $templateId .'-'. ucfirst($this->platformName) .'.css', [], $this->getVersion());
 }
 else {
 $cssCdnVersion = $this->getCdnVersion('feed-css');
 if ($cssCdnVersion && version_compare($cssCdnVersion, $this->getVersion('feed-css'))) {
 $response = wp_remote_post('https://admin.trustindex.io/api/getFeedCss', [
-'body' => [
+'headers' => ['Content-Type' => 'application/json'],
+'body' => wp_json_encode([
 'data' => $feedData,
 'template-id' => $templateId,
 'public-id' => get_option($this->getOptionName('public-id'))
-],
+]),
 'timeout' => '60'
 ]);
 if (!is_wp_error($response)) {
@@ -3208,7 +3302,7 @@ $this->handleCssFile();
 $this->updateVersion('feed-css', $cssCdnVersion);
 }
 $feedData['widget-key'] = 'feed-'. $this->getShortName();
-$cssKey = 'trustindex-feed-widget-css-' . $this->getShortName();
+$cssKey = $this->getCssKey();
 if (!wp_style_is($cssKey, 'registered')) {
 $cssContent = get_option($this->getOptionName('css-content'));
 if (!get_option($this->getOptionName('load-css-inline'), 0) || !$cssContent) {
@@ -3229,33 +3323,54 @@ else {
 wp_enqueue_style($cssKey);
 }
 }
-return $this->renderWidget($id, $feedData);
+return $this->registerWidget($id, $feedData, $isPreview);
 }
-private function renderWidget($id, $feedData = null)
+private function registerWidget($id, $feedData = null, $isPreview = true)
 {
-$containerId = 'trustindex-feed-container-'.$id;
-$enqueueLoader = function () use ($id, $feedData, $containerId) {
+$dataId = $this->getWidgetDataKey($id);
+$isWpWidget = isset($feedData);
+$enqueueData = function () use ($id, $feedData, $dataId, $isWpWidget) {
 $data = [
 '@context' => 'http://schema.org',
-'container' => $containerId,
+'container' => $this->getContainerKey($id),
 ];
-$isWpWidget = isset($feedData);
 if ($isWpWidget) {
 $data['data'] = $feedData;
-$data['cssUrl'] = $this->getCssUrl().'?'.filemtime($this->getCssFile());
+$data['cssUrl'] = $this->getCssUrl().(is_file($this->getCssFile()) ? '?'.filemtime($this->getCssFile()) : '');
 $data['pluginVersion'] = $this->getVersion();
 }
 $data = 'script_content_start'.base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)).'script_content_end';
-wp_enqueue_script('trustindex-feed-data-'.$id, 'https://cdn.trustindex.io/loader-feed.js', [], $id.($isWpWidget ? '|wordpress' : '').$data, ['in_footer' => false]);
-wp_enqueue_script('trustindex-feed-loader-js', 'https://cdn.trustindex.io/loader-feed.js', [], $this->getVersion(), ['in_footer' => true]);
+wp_enqueue_script($dataId, 'https://cdn.trustindex.io/loader-feed.js', [], $id.($isWpWidget ? '|wordpress' : '').$data, ['in_footer' => false]);
+};
+if (!$isPreview || !$isWpWidget) {
+$this->registerLoaderScript([$dataId]);
+}
+add_action('wp_footer', $enqueueData);
+add_action('admin_footer', $enqueueData);
+return $id;
+}
+public function registerLoaderScript($deps = []) {
+$enqueueLoader = function () use ($deps) {
+wp_enqueue_script($this->getLoaderScriptKey(), 'https://cdn.trustindex.io/loader-feed.js', $deps, $this->getVersion(), ['in_footer' => true]);
 };
 add_action('wp_footer', $enqueueLoader);
 add_action('admin_footer', $enqueueLoader);
-return '<div id="'.$containerId.'"></div>';
+}
+public function getContainerKey($widgetId) {
+return 'trustindex-feed-container-'.$this->getShortName().'-'.$widgetId;
+}
+public function getCssKey($widgetId = null) {
+return 'trustindex-feed-widget-css-'.$this->getShortName().($widgetId ? '-'.$widgetId : '');
+}
+public function getWidgetDataKey($widgetId) {
+return 'trustindex-feed-data-'.$this->getShortName().'-'.$widgetId;
+}
+public function getLoaderScriptKey() {
+return 'trustindex-feed-loader-js';
 }
 public function getAdminWidget($id)
 {
-return $this->renderWidget($id);
+return '<div id="'.$this->getContainerKey($this->registerWidget($id)).'"></div>';
 }
 
 
@@ -3558,9 +3673,37 @@ $this->displayImg(str_replace('%platform%', ucfirst($this->getShortName()), 'htt
  sprintf(__('We can no longer update the posts in your %s feed widget.', 'social-photo-feed-widget'), ucfirst($this->getShortName())).
  '<br/><a href="#">'. __('Click here to reconnect', 'social-photo-feed-widget') .'</a>'.
  '</p>',
-]
+],
+'posts-download-finished' => [
+'type' => 'warning',
+'extra-class' => "",
+'button-text' => __('Go to Connect Page', 'social-photo-feed-widget'),
+'is-closeable' => true,
+'hide-on-close' => true,
+'hide-on-open' => true,
+'remind-later-button' => false,
+'redirect' => '?page='. $this->getPluginSlug() .'/admin.php&tab=feed-configurator&step=1',
+/* translators: %s: Platform name */
+'text' => sprintf(__('Your new %s posts have been downloaded.', 'social-photo-feed-widget'), ucfirst($this->getShortName())),
+],
 ];
 return $type ? $list[$type] : $list;
+}
+public function getNotificationActionUrl($type, $action, $remindDays = null)
+{
+return wp_nonce_url(
+add_query_arg(
+array_filter(array(
+'page' => $this->getPluginSlug() . '/admin.php',
+'notification' => $type,
+'action' => $action,
+'remind-days' => $remindDays,
+)),
+admin_url('admin.php')
+),
+'ti-' . $type . '_' . $action,
+'notification_action_nonce'
+);
 }
 public function setNotificationParam($type, $param, $value)
 {
@@ -3597,6 +3740,98 @@ public function isNotificationEnabled($type)
 $notifications = get_option($this->getOptionName('notifications'), []);
 return isset($notifications[$type]);
 }
+public function getNotificationEmailContent($type)
+{
+$subject = '';
+$message = '';
+switch ($type) {
+case 'posts-download-finished':
+$username = '';
+$source = get_option($this->getOptionName('connect-pending'), []);
+if (isset($source['username'])) {
+$username = $source['username'];
+} elseif ($source = $this->getConnectedSource()) {
+$username = $source['name'];
+}
+$link = admin_url('admin.php?page='.$this->getPluginSlug().'/admin.php&tab=feed-configurator&step=2');
+$subject = 'Create your Instagram feed widget';
+$message = strtr(
+'<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Create your Instagram feed widget</title>
+<meta name="viewport" content="width=device-width" />
+ <style type="text/css">
+@media only screen and (max-width: 550px), screen and (max-device-width: 550px) {
+body[yahoo] .buttonwrapper { background-color: transparent !important; }
+body[yahoo] .button { padding: 0 !important; }
+body[yahoo] .button a { background-color: #69b899; padding: 15px 25px !important; }
+}
+@media only screen and (min-device-width: 601px) {
+.content { width: 600px !important; }
+.col387 { width: 387px !important; }
+}
+</style>
+</head>
+<body bgcolor="#f9f9f9" style="margin: 0; padding: 10px; background-color: #f9f9f9;" yahoo="fix">
+<!--[if (gte mso 9)|(IE)]>
+<table width="600" align="center" cellpadding="0" cellspacing="0" border="0">
+ <tr>
+<td>
+<![endif]-->
+<table align="center" border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 600px; background-color: white; border: 1px solid #ccc;" class="content">
+<tr>
+<td style="padding: 15px 10px;"> </td>
+</tr>
+<tr>
+<td bgcolor="#ffffff" style="padding: 0 20px 20px 20px; color: #222222; font-family: Arial, sans-serif; font-size: 15px; line-height: 24px;">
+Your Instagram account (@%username%) has been successfully connected and the posts have been downloaded – you can now create your Instagram feed widget.<p style="text-align: center; padding: 30px;"><a href="%link%" style="background-color: #2AA8D7; margin: 10px; padding: 20px; border-radius: 4px; color: #ffffff; text-decoration: none; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; display: block;">Create Instagram Feed Widget</a></p></td>
+</tr>
+<tr>
+<td align="center" bgcolor="#242F62" style="padding: 15px 10px 15px 10px; color: #ffffff; font-family: Arial, sans-serif; font-size: 12px; line-height: 18px;">
+2018-2025 &copy; <b>Trustindex.io</b><br/>
+<a target="_blank" href="https://www.trustindex.io" style="color:#ffffff;">https://www.trustindex.io</a>
+</td>
+</tr>
+</table>
+<!--[if (gte mso 9)|(IE)]>
+</td>
+</tr>
+</table>
+<![endif]-->
+</body>
+</html>
+',
+[
+'%username%' => $username,
+'%link%' => $link,
+]
+);
+break;
+}
+return [
+'subject' => $subject,
+'message' => $message,
+];
+}
+public function sendNotificationEmail($type)
+{
+if ($email = $this->getNotificationParam($type, 'email', get_option('admin_email'))) {
+if (!$this->getNotificationParam($type, 'hidden')) {
+$this->setNotificationParam($type, 'do-check', true);
+$this->setNotificationParam($type, 'active', false);
+}
+$msg = $this->getNotificationEmailContent($type);
+if ($msg['subject'] && $msg['message']) {
+try {
+return wp_mail($email, $msg['subject'], $msg['message'], ['Content-Type: text/html; charset=UTF-8'], ['']);
+} catch (Exception) {
+return false;
+}
+}
+}
+}
 
 
 public function getOptionName($optName)
@@ -3623,6 +3858,7 @@ return [
 'version-control',
 'preview',
 'source',
+'connect-pending',
 'feed-data',
 'feed-data-saved',
 'public-id',

@@ -5,7 +5,7 @@ Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 Tags: instagram, feed, widget, photos, gallery
-Version: 1.6.7
+Version: 1.7
 Requires at least: 6.2
 Requires PHP: 7.0
 Author: Trustindex.io <support@trustindex.io>
@@ -27,7 +27,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.6.7", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.7", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);
@@ -43,7 +43,7 @@ $path = wp_upload_dir()['baseurl'] .'/'. $pluginManagerInstance->getCssFile(true
 if (is_ssl()) {
 $path = str_replace('http://', 'https://', $path);
 }
-wp_register_style('trustindex-feed-widget-css-'. $pluginManagerInstance->getShortName(), $path, [], filemtime($pluginManagerInstance->getCssFile()));
+wp_register_style($pluginManagerInstance->getCssKey(), $path, [], filemtime($pluginManagerInstance->getCssFile()));
 });
 }
 if (!function_exists('trustindex_esc_css')) {
@@ -74,6 +74,49 @@ $tag = preg_replace(array_keys($replace), array_values($replace), $tag);
 }
 return $tag;
 }, 10, 3);
+add_action('rest_api_init', function () use ($pluginManagerInstance) {
+register_rest_route($pluginManagerInstance->getWebhookAction(), '/get-token', [
+'methods' => 'GET',
+'callback' => function () {
+return rest_ensure_response([
+'nonce' => wp_create_nonce('admin_action_nonce'),
+]);
+},
+'permission_callback' => '__return_true',
+]);
+register_rest_route($pluginManagerInstance->getWebhookAction(), '/troubleshooting', [
+'methods' => 'GET',
+'callback' => function () use ($pluginManagerInstance) {
+header('Content-Type: text/plain; charset=UTF-8');
+global $wpdb;
+include $pluginManagerInstance->getPluginDir() . 'include' . DIRECTORY_SEPARATOR . 'troubleshooting.php';
+exit;
+},
+'permission_callback' => '__return_true',
+]);
+register_rest_route($pluginManagerInstance->getWebhookAction(), '/submit-data', [
+'methods' => 'POST',
+'callback' => function (WP_REST_Request $request) use ($pluginManagerInstance) {
+$nonce = $request->get_param('nonce');
+if (!wp_verify_nonce($nonce, 'admin_action_nonce')) {
+return new WP_REST_Response(['error' => 'Invalid nonce'], 403);
+}
+$isConnecting = !empty(get_option($pluginManagerInstance->getOptionName('connect-pending'), []));
+/*
+This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
+*/
+$source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($request->get_param('data')), false);
+$source = $pluginManagerInstance->saveConnectedSource($source);
+if ($isConnecting && empty($source['error'])) {
+$pluginManagerInstance->sendNotificationEmail('posts-download-finished');
+}
+return new WP_REST_Response([
+'token' => get_option($pluginManagerInstance->getOptionName('public-id')),
+]);
+},
+'permission_callback' => '__return_true',
+]);
+});
 add_action('admin_notices', function() use ($pluginManagerInstance) {
 if (!current_user_can($pluginManagerInstance::$permissionNeeded)) {
 return;
@@ -82,31 +125,31 @@ foreach ($pluginManagerInstance->getNotificationOptions() as $type => $options) 
 if (!$pluginManagerInstance->isNotificationActive($type)) {
 continue;
 }
-echo '<div class="notice notice-'. esc_attr($options['type']) .' '. ($options['is-closeable'] ? 'is-dismissible' : '') .' trustindex-notification-row '. esc_attr($options['extra-class']).'" data-close-url="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=close')) .'">';
+echo '<div class="notice notice-'. esc_attr($options['type']) .' '. ($options['is-closeable'] ? 'is-dismissible' : '') .' trustindex-notification-row '. esc_attr($options['extra-class']).'" data-close-url="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'close')) .'">';
 if ($type === 'rate-us') {
 echo '<div class="trustindex-star-row">&starf;&starf;&starf;&starf;&starf;</div>';
 }
 echo '<p>'. wp_kses_post($options['text']) .'<p>';
 if ($type === 'rate-us') {
 echo '
-<a href="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=open')) .'" class="ti-close-notification" target="_blank">
+<a href="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'open')) .'" class="ti-close-notification" target="_blank">
 <button class="button ti-button-primary button-primary">'. esc_html(__('Write a review', 'social-photo-feed-widget')) .'</button>
 </a>
-<a href="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=later')) .'" class="ti-remind-later">
+<a href="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'later')) .'" class="ti-remind-later">
 '. esc_html(__('Maybe later', 'social-photo-feed-widget')) .'
 </a>
-<a href="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=hide')) .'" class="ti-hide-notification" style="float: right; margin-top: 14px">
+<a href="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'hide')) .'" class="ti-hide-notification" style="float: right; margin-top: 14px">
 '. esc_html(__('Do not remind me again', 'social-photo-feed-widget')) .'
 </a>
 ';
 } else {
 echo '
-<a href="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=open')) .'">
+<a href="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'open')) .'">
 <button class="button button-primary">'. esc_html($options['button-text']) .'</button>
 </a>';
 if ($options['remind-later-button']) {
 echo '
-<a href="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=later')) .'" class="ti-remind-later" style="margin-left: 5px">
+<a href="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'later')) .'" class="ti-remind-later" style="margin-left: 5px">
 '. esc_html(__('Remind me later', 'social-photo-feed-widget')) .'
 </a>';
 }
@@ -137,8 +180,8 @@ foreach ($pluginManagerInstance->getNotificationOptions() as $type => $options) 
 if (!$pluginManagerInstance->isNotificationActive($type) || !in_array($options['type'], ['error'])) {
 continue;
 }
-echo '<div class="trustindex-notice notice-'. esc_attr($options['type']) . '" style="left:-50%;opacity:0;" data-redirect-url="'. esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() .'/admin.php&notification='. $type .'&action=open')) .'">';
-echo '<span class="trustindex-notice-dismiss" data-close-url="' . esc_url(admin_url('admin.php?page='. $pluginManagerInstance->getPluginSlug() . '/admin.php&notification=' . $type . '&action=later&remind-days=1')) . '"></span>';
+echo '<div class="trustindex-notice notice-'. esc_attr($options['type']) . '" style="left:-50%;opacity:0;" data-redirect-url="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'open')) .'">';
+echo '<span class="trustindex-notice-dismiss" data-close-url="' . esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'later', '1')) . '"></span>';
 echo wp_kses_post($options['short-message']);
 echo '</div>';
 }

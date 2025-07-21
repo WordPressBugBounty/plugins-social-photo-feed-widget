@@ -7,7 +7,7 @@ defined('ABSPATH') or die('No script kiddies please!');
 /* translators: %s: Platform name */
 echo esc_html(sprintf(__('Increase SEO, trust and sales using %s feeds.', 'social-photo-feed-widget'), 'Instagram'));
 ?></div>
-<a class="ti-btn" href="https://www.trustindex.io/ti-redirect.php?url=/feed-widgets&a=sys&c=<?php echo esc_attr($tiCampaign1); ?>" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
+<a class="ti-btn" href="https://www.trustindex.io?url=/feed-widgets&a=sys&c=<?php echo esc_attr($tiCampaign1); ?>" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
 <p class="ti-mt-1"><?php echo esc_html(__('Get more features with a professional package:', 'social-photo-feed-widget')); ?></p>
 <ul class="ti-seo-list">
 <li>
@@ -57,7 +57,7 @@ echo esc_html(sprintf(__('Add more posts to your widget from %s, etc. to enjoy m
 <?php echo esc_html(__('Adjust every element of the feed widget to your brand: style, color, size, fonts and more.', 'social-photo-feed-widget')); ?>
 </li>
 </ul>
-<a class="ti-btn" href="https://www.trustindex.io/ti-redirect.php?url=/feed-widgets&ti-redirect.php?a=sys&c=<?php echo esc_attr($tiCampaign2); ?>" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
+<a class="ti-btn" href="https://www.trustindex.io?url=/feed-widget?a=sys&c=<?php echo esc_attr($tiCampaign2); ?>" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
 <div class="ti-special-offer">
 <?php echo wp_kses_post($pluginManagerInstance->displayImg('assets/img/special_30.jpg')); ?>
 <p><?php echo esc_html(__('Now we offer you a 30%% discount off your subscription! Create your free account and benefit from the onboarding discount now!', 'social-photo-feed-widget')); ?></p>

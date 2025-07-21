@@ -18,6 +18,7 @@ header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'
 }
 exit;
 }
+$pluginManagerInstance->registerLoaderScript();
 $posts = $feedData['posts'];
 ?>
 <div class="ti-header-title"><?php echo esc_html(__('My Posts', 'social-photo-feed-widget')); ?></div>
@@ -25,7 +26,7 @@ $posts = $feedData['posts'];
 <div class="ti-upgrade-notice">
 <strong><?php echo esc_html(__('UPGRADE to PRO Features', 'social-photo-feed-widget')); ?></strong>
 <p><?php echo esc_html(__('Get unlimited posts, multiple feed widgets with custom style settings, widget popups, and access to 9 social platforms – everything you need to showcase your content like a pro!', 'social-photo-feed-widget')); ?></p>
-<a class="ti-btn" href="https://www.trustindex.io/ti-redirect.php?a=sys&c=wp-instagram-feed-pro" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
+<a class="ti-btn" href="https://www.trustindex.io?a=sys&c=wp-instagram-feed-pro" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
 </div>
 <?php if (!count($posts)): ?>
 <div class="ti-notice ti-notice-warning">

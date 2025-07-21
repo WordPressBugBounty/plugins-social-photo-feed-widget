@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') or die('No script kiddies please!');
 if (isset($_REQUEST['command'])) {
-if ($_REQUEST['command'] === 'connect-source') {
+if ('source-connect' === $_REQUEST['command']) {
 check_admin_referer('ti-connect-source');
 $source = null;
 if (isset($_POST['data'])) {
@@ -9,44 +9,27 @@ if (isset($_POST['data'])) {
 This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
 */
 $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
-}
-if ($source) {
-if ((int)$source['token_expires'] <= 0) {
-update_option($pluginManagerInstance->getOptionName('token-expires'), 0, false);
-} else {
-update_option($pluginManagerInstance->getOptionName('token-expires'), time() + (int)$source['token_expires'], false);
-$pluginManagerInstance->setNotificationParam('token-renew', 'active', false);
-$pluginManagerInstance->setNotificationParam('token-renew', 'do-check', true);
-$pluginManagerInstance->setNotificationParam('token-expired', 'active', false);
-$pluginManagerInstance->setNotificationParam('token-expired', 'do-check', true);
-}
-if (empty($source['feed_data']['posts']) && isset($_GET['page'])) {
-header('Location: admin.php?page='.sanitize_text_field(wp_unslash($_GET['page'])).'&tab='.sanitize_text_field($selectedTab).'&error=no-posts');
-exit;
-}
-if (isset($source['is_reconnecting']) && $source['is_reconnecting']) {
-$pluginManagerInstance->updateFeedData($source['feed_data']);
-$oldSource = $pluginManagerInstance->getConnectedSource();
-$oldSource['access_token'] = $source['access_token'];
-$source = $oldSource;
-} else {
-$pluginManagerInstance->saveFeedData($source['feed_data']);
-update_option($pluginManagerInstance->getOptionName('public-id'), $source['public_id'], false);
-unset($source['avatar_url']);
-unset($source['feed_data']);
-unset($source['token_expires']);
-unset($source['access_token_expires']);
-unset($source['public_id']);
-unset($source['is_reconnecting']);
-}
-if ($source['name']) {
-$source['name'] = wp_json_encode($source['name']);
-}
-update_option($pluginManagerInstance->getOptionName('source'), $source, false);
+$pluginManagerInstance->saveConnectedSource($source, isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : null);
 }
 if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
 }
+exit;
+}
+else if ('source-connecting' === $_REQUEST['command']) {
+check_admin_referer('ti-connect-source');
+if (get_option($pluginManagerInstance->getOptionName('source'))) {
+delete_option($pluginManagerInstance->getOptionName('connect-pending'));
+exit;
+}
+$source = null;
+if (isset($_POST['data'])) {
+/*
+This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
+*/
+$source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
+}
+update_option($pluginManagerInstance->getOptionName('connect-pending'), $source, false);
 exit;
 }
 else if ($_REQUEST['command'] === 'disconnect-source') {
@@ -121,6 +104,13 @@ $layout = get_option($pluginManagerInstance->getOptionName('layout'));
 $template = get_option($pluginManagerInstance->getOptionName('template'));
 $css = get_option($pluginManagerInstance->getOptionName('css-content'));
 $isReconnectingSource = isset($_GET['reconnect-source']);
+$error = null;
+$connectPending = get_option($pluginManagerInstance->getOptionName('connect-pending'), []);
+if (isset($connectPending['error'])) {
+$error = $connectPending['error'];
+} elseif (isset($_GET['error'])) {
+$error = sanitize_text_field(wp_unslash($_GET['error']));
+}
 ?>
 <?php
 $stepUrl = '?' . (isset($_GET['page']) ? 'page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&' : '') . 'tab=feed-configurator&step=%step%';
@@ -214,7 +204,7 @@ echo esc_html(sprintf(__('This will ensure that your %s Feed Widget continues to
 <?php else: ?>
 
 <p><?php echo esc_html(__("Select the type of posts you'd like to display in your feed", 'social-photo-feed-widget')); ?></p>
-<?php if (isset($_GET['error']) && 'no-posts' === $_GET['error']): ?>
+<?php if (isset($error) && 'no-posts' === $error): ?>
 <?php echo wp_kses_post($pluginManagerInstance::getAlertBox('error', __('The source you attempted to connect does not contain any posts. Please connect a different source.', 'social-photo-feed-widget'))); ?>
 <?php endif; ?>
 <form method="post" id="ti-connect-source-form">
@@ -229,7 +219,18 @@ $connectUrl .= '/public_id/'.get_option($pluginManagerInstance->getOptionName('p
 }
 ?>
 
-<iframe src="<?php echo esc_attr($connectUrl); ?>?email=<?php echo esc_attr(urlencode(get_option('admin_email'))); ?>&website=<?php echo esc_attr(urlencode(get_option('siteurl'))); ?>" id="ti-admin-iframe" scrolling="no" allowfullscreen="true"></iframe>
+<?php
+$connectUrlParams = array_merge(
+isset($connectPending['error']) ? [] : $connectPending,
+array(
+'email' => esc_attr(urlencode(get_option('admin_email'))),
+'website' => esc_attr(urlencode(get_option('siteurl'))),
+'version' => esc_attr($pluginManagerInstance->getVersion()),
+),
+(null !== $pluginManagerInstance->getWebhookUrl() ? array('webhook' => esc_attr(urlencode($pluginManagerInstance->getWebhookUrl()))) : array())
+);
+?>
+<iframe src="<?php echo esc_url(add_query_arg($connectUrlParams, esc_attr($connectUrl))); ?>" id="ti-admin-iframe" scrolling="no" allowfullscreen="true"></iframe>
 
 <?php endif; ?>
 <?php elseif ($stepCurrent === 2): ?>
@@ -246,7 +247,7 @@ $connectUrl .= '/public_id/'.get_option($pluginManagerInstance->getOptionName('p
 </div>
 <?php endforeach; ?>
 </div>
-<?php elseif ($stepCurrent === 3): ?>
+<?php elseif ($stepCurrent === 3): $widgetDataIds = []; ?>
 <div class="ti-preview-boxes-container">
 <?php foreach ($pluginManager::$widgetTemplates as $id => $template): ?>
 <?php
@@ -267,12 +268,21 @@ if ($template['is-active'] && $template['category'] === $layout):
 <?php endif; ?>
 <div class="clear"></div>
 </div>
-<div class="preview"><?php echo wp_kses_post($pluginManagerInstance->getWidget($id)); ?></div>
+<div class="preview">
+<div id="<?php
+$widgetId = $pluginManagerInstance->getWidget($id);
+$widgetDataIds[] = $pluginManagerInstance->getWidgetDataKey($widgetId);
+echo esc_attr($pluginManagerInstance->getContainerKey($widgetId));
+?>"></div>
+</div>
 </div>
 </div>
 </div>
 <?php endif; ?>
 <?php endforeach; ?>
+<?php
+$pluginManagerInstance->registerLoaderScript($widgetDataIds);
+?>
 </div>
 <?php elseif ($stepCurrent === 4): ?>
 <form method="post" id="ti-widget-editor-form">

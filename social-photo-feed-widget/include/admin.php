@@ -17,10 +17,14 @@ header('Location: admin.php?' . build_query($params));
 exit;
 }
 if (isset($_GET['notification'])) {
-$type = sanitize_text_field(wp_unslash($_GET['notification']));
-$options = $pluginManagerInstance->getNotificationOptions($type);
 if (isset($_GET['action'])) {
-switch (sanitize_text_field(wp_unslash($_GET['action']))) {
+$type = sanitize_text_field(wp_unslash($_GET['notification']));
+$action = sanitize_text_field(wp_unslash($_GET['action']));
+if (!isset($_GET['notification_action_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['notification_action_nonce'])), 'ti-' . $type . '_' . $action)) {
+wp_die('Security check failed');
+}
+$options = $pluginManagerInstance->getNotificationOptions($type);
+switch ($action) {
 case 'later':
 $remindDays = isset($_GET['remind-days']) ? (int)$_GET['remind-days'] : 14;
 $pluginManagerInstance->setNotificationParam($type, 'timestamp', time() + ($remindDays * 86400));
@@ -209,7 +213,7 @@ href="<?php echo esc_url(admin_url('admin.php?page='. esc_attr(sanitize_text_fie
 <?php endif; ?>
 </a>
 <?php endforeach; ?>
-<a href="https://www.trustindex.io/ti-redirect.php?a=sys&c=<?php echo esc_attr($logoCampaignId); ?>" target="_blank" title="Trustindex" class="ti-logo">
+<a href="https://www.trustindex.io/?a=sys&c=<?php echo esc_attr($logoCampaignId); ?>" target="_blank" title="Trustindex" class="ti-logo">
 <img src="<?php echo esc_url($pluginManagerInstance->getPluginFileUrl($logoFile)); ?>" />
 </a>
 </div>
