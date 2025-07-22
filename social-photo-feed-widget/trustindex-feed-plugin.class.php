@@ -3826,7 +3826,7 @@ $msg = $this->getNotificationEmailContent($type);
 if ($msg['subject'] && $msg['message']) {
 try {
 return wp_mail($email, $msg['subject'], $msg['message'], ['Content-Type: text/html; charset=UTF-8'], ['']);
-} catch (Exception) {
+} catch (Exception $e) {
 return false;
 }
 }
