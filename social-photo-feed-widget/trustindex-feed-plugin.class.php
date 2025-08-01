@@ -273,6 +273,8 @@ update_option($this->getOptionName('token-expires'), $tokenExpires, false);
 if (time() > $tokenExpires) {
 $this->setNotificationParam('token-renew', 'active', false);
 $this->setNotificationParam('token-expired', 'active', true);
+} else {
+$this->setNotificationParam('token-expired', 'active', false);
 }
 }
 }
@@ -295,7 +297,7 @@ return $data;
 }
 if ($data) {
 foreach ($data as $key => $value) {
-if (!in_array($key, [ 'posts', 'sources', 'source_types', 'sprite' ])) {
+if (!in_array($key, [ 'posts', 'sources', 'source_types', 'sprite', 'token_expires' ])) {
 $newData[ $key ] = $value;
 }
 }
@@ -3303,7 +3305,7 @@ $this->updateVersion('feed-css', $cssCdnVersion);
 }
 $feedData['widget-key'] = 'feed-'. $this->getShortName();
 $cssKey = $this->getCssKey();
-if (!wp_style_is($cssKey, 'registered')) {
+if (!wp_style_is($cssKey, 'registered') || get_option($this->getOptionName('load-css-inline'), 0)) {
 $cssContent = get_option($this->getOptionName('css-content'));
 if (!get_option($this->getOptionName('load-css-inline'), 0) || !$cssContent) {
 if (class_exists('\Elementor\Plugin') && \Elementor\Plugin::$instance->editor->is_edit_mode()) {
@@ -3336,7 +3338,9 @@ $data = [
 ];
 if ($isWpWidget) {
 $data['data'] = $feedData;
+if (!get_option($this->getOptionName('load-css-inline'), 0)) {
 $data['cssUrl'] = $this->getCssUrl().(is_file($this->getCssFile()) ? '?'.filemtime($this->getCssFile()) : '');
+}
 $data['pluginVersion'] = $this->getVersion();
 }
 $data = 'script_content_start'.base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)).'script_content_end';
