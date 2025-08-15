@@ -4,8 +4,8 @@ Plugin Name: Widgets for Social Photo Feed
 Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
-Tags: instagram, feed, widget, photos, gallery
-Version: 1.7.2
+Tags: instagram, instagram feed, instagram gallery, instagram photos, instagram widget
+Version: 1.7.3
 Requires at least: 6.2
 Requires PHP: 7.0
 Author: Trustindex.io <support@trustindex.io>
@@ -27,7 +27,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.7.2", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.7.3", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);
@@ -65,7 +65,7 @@ $content_pattern = '/script_content_start(.*)script_content_end/';
 if (preg_match($content_pattern, $tag, $content)) {
 $replace = [
  '/\s+type\s*=\s*["\'][^"\']+["\']/' => '',
-'/\s+src\s*=\s*/' => ' type="application/ld+json" data-src=',
+'/\s+src\s*=\s*/' => ' type="application/json" data-src=',
 $content_pattern => '',
 '/><\//' => '>'. base64_decode($content[1]) .'</',
 ];
@@ -108,7 +108,10 @@ This function ensures that each element of the JSON object is sanitized individu
 $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($request->get_param('data')), false);
 $source = $pluginManagerInstance->saveConnectedSource($source);
 if ($isConnecting && empty($source['error'])) {
-$pluginManagerInstance->sendNotificationEmail('posts-download-finished');
+$notificationType = 'posts-download-finished';
+$pluginManagerInstance->sendNotificationEmail($notificationType);
+$pluginManagerInstance->setNotificationParam($notificationType, 'active', true);
+$pluginManagerInstance->setNotificationParam($notificationType, 'do-check', false);
 }
 return new WP_REST_Response([
 'token' => get_option($pluginManagerInstance->getOptionName('public-id')),
@@ -177,7 +180,7 @@ if (!is_user_logged_in() || !current_user_can($pluginManagerInstance::$permissio
 return;
 }
 foreach ($pluginManagerInstance->getNotificationOptions() as $type => $options) {
-if (!$pluginManagerInstance->isNotificationActive($type) || !in_array($options['type'], ['error'])) {
+if (!$pluginManagerInstance->isNotificationActive($type) || !isset($options['short-message'])) {
 continue;
 }
 echo '<div class="trustindex-notice notice-'. esc_attr($options['type']) . '" style="left:-50%;opacity:0;" data-redirect-url="'. esc_url($pluginManagerInstance->getNotificationActionUrl($type, 'open')) .'">';

@@ -293,10 +293,12 @@ $pluginManagerInstance->registerLoaderScript($widgetDataIds);
 $feedData = $pluginManagerInstance->getFeedData();
 $iframeUrl = 'https://admin.trustindex.io/widget/edit/layout_id/'. esc_attr($template) .'/source/'. esc_attr(ucfirst($pluginManagerInstance->getShortName())) .'/iframe/1/layout-set/'. esc_attr($feedData['style']['type']);
 ?>
-<script type="application/ld+json">{"@context":"http://schema.org","data":<?php echo wp_json_encode($feedData); ?>}</script>
+<script type="application/json">{"data":<?php echo wp_json_encode($feedData); ?>}</script>
 <iframe id="ti-admin-iframe" class="ti-narrow-iframe" name="ti-widget-editor-iframe" data-src="<?php echo esc_url($iframeUrl . '?version='. esc_attr($pluginManagerInstance->getVersion())); ?>" scrolling="no" allowfullscreen="true"></iframe>
 </form>
-<?php else: ?>
+<?php else:
+$pluginManagerInstance->setNotificationParam('posts-download-finished', 'active', false);
+?>
 <div class="ti-box ti-mb-2">
 <div class="ti-box-header"><?php echo esc_html(__('Insert this shortcode into your website', 'social-photo-feed-widget')); ?></div>
 <div class="ti-form-group" style="margin-bottom: 2px">

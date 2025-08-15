@@ -126,7 +126,7 @@ jQuery(document).ready(function($) {
 			let input = document.createElement('input');
 			input.setAttribute('type', 'hidden');
 			input.setAttribute('name', 'wp-data');
-			input.value = widgetEditorForm.find('script[type="application/ld+json"]').html();
+			input.value = widgetEditorForm.find('script[type="application/json"]').html();
 
 			// - add input to form, and form to DOM
 			form.appendChild(input);
@@ -153,15 +153,23 @@ jQuery(document).ready(function($) {
 		}
 	}
 
-	let postPreviews = $('img.ti-post-preview');
-	if (postPreviews.length && typeof TrustindexFeed !== 'undefined' && typeof TrustindexFeed.getProxyMedia !== 'undefined') {
-		postPreviews.each(function() {
-			let img = $(this);
-			let src = img.attr('src');
-			if (-1 === src.indexOf('http')) {
-				img.attr('src', TrustindexFeed.getProxyMedia(src));
-			}
-		});
+	let loadProxyImages = function() {
+		let postPreviews = document.querySelectorAll('img.ti-post-preview');
+		if (postPreviews.length && typeof TrustindexFeed !== 'undefined' && typeof TrustindexFeed.getProxyMedia !== 'undefined') {
+			postPreviews.forEach(function(img) {
+				let src = img.getAttribute('src');
+				if (!src.startsWith('http')) {
+					img.setAttribute('src', TrustindexFeed.getProxyMedia(src));
+				}
+			});
+
+			return true;
+		}
+
+		return false;
+	}
+	if (!loadProxyImages()) {
+		document.addEventListener('trustindex-feed-loader-ready', loadProxyImages);
 	}
 });
 

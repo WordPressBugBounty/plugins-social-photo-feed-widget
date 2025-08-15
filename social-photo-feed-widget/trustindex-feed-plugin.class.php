@@ -3333,7 +3333,6 @@ $dataId = $this->getWidgetDataKey($id);
 $isWpWidget = isset($feedData);
 $enqueueData = function () use ($id, $feedData, $dataId, $isWpWidget) {
 $data = [
-'@context' => 'http://schema.org',
 'container' => $this->getContainerKey($id),
 ];
 if ($isWpWidget) {
@@ -3679,16 +3678,36 @@ $this->displayImg(str_replace('%platform%', ucfirst($this->getShortName()), 'htt
  '</p>',
 ],
 'posts-download-finished' => [
-'type' => 'warning',
+'type' => 'info',
 'extra-class' => "",
-'button-text' => __('Go to Connect Page', 'social-photo-feed-widget'),
+/* translators: %s: Platform name */
+'button-text' => sprintf(__('Create %s Feed Widget', 'social-photo-feed-widget'), ucfirst($this->getShortName())),
 'is-closeable' => true,
 'hide-on-close' => true,
 'hide-on-open' => true,
 'remind-later-button' => false,
-'redirect' => '?page='. $this->getPluginSlug() .'/admin.php&tab=feed-configurator&step=1',
+'redirect' => '?page='.$this->getPluginSlug().'/admin.php&tab=feed-configurator&step=2',
+'text' =>
+'<strong>'.
 /* translators: %s: Platform name */
-'text' => sprintf(__('Your new %s posts have been downloaded.', 'social-photo-feed-widget'), ucfirst($this->getShortName())),
+sprintf(__('%s posts ready', 'social-photo-feed-widget'), ucfirst($this->getShortName())).
+'</strong><br />'.
+/* translators: %s: Platform name */
+sprintf(__('Your %s posts are imported and ready.', 'social-photo-feed-widget'), ucfirst($this->getShortName())).'<br />'.
+__('Create and embed your feed widget', 'social-photo-feed-widget'),
+'short-message' =>
+$this->displayImg(str_replace('%platform%', ucfirst($this->getShortName()), 'https://cdn.trustindex.io/assets/platform/%platform%/icon-feed.svg'), array('alt' => ucfirst($this->getShortName()))).
+'<p>'.
+'<strong>'.
+/* translators: %s: Platform name */
+sprintf(__('%s posts ready', 'social-photo-feed-widget'), ucfirst($this->getShortName())).
+'</strong><br />'.
+/* translators: %s: Platform name */
+sprintf(__('Your %s posts are imported and ready.', 'social-photo-feed-widget'), ucfirst($this->getShortName())).'<br />'.
+__('Create and embed your feed widget', 'social-photo-feed-widget').'<br />'.
+/* translators: %s: Platform name */
+'<a href="#">'.sprintf(__('Create %s Feed Widget', 'social-photo-feed-widget'), ucfirst($this->getShortName())).'</a>'.
+'</p>',
 ],
 ];
 return $type ? $list[$type] : $list;
