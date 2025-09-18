@@ -108,6 +108,13 @@ jQuery(document).ready(function($) {
 		};
 
 		window.addEventListener('message', handleIframeMessages);
+
+		setTimeout(function() {
+			if (!iframeLoaded) {
+				$('.ti-container').replaceWith('<div id="ti-assets-error" class="notice notice-error"><p>'+iframe.data('error-message').replaceAll("\n",'<br>')+'</p></div>');
+				$('.ti-step-buttons').remove();
+			}
+		}, 5000);
 	}
 
 	// widget editor form

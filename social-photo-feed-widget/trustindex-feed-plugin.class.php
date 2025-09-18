@@ -190,7 +190,7 @@ add_shortcode($this->getShortcodeName(), function($atts) use($pluginManager) {
 if (!$pluginManager->getConnectedSource()) {
 return $pluginManager->errorBoxForAdmins(__('You have to connect your source!', 'social-photo-feed-widget'));
 }
-return '<div id="'.$pluginManager->getContainerKey($pluginManager->getWidget()).'"></div>';
+return '<div id="'.esc_attr($pluginManager->getContainerKey($pluginManager->getWidget())).'"></div>';
 });
 add_shortcode($this->getShortcodeName(true), function($atts) use($pluginManager) {
 $atts = shortcode_atts(['widget-id' => null], $atts);
@@ -368,22 +368,22 @@ update_option($this->getOptionName('source'), $source, false);
 delete_option($this->getOptionName('connect-pending'));
 return $source;
 }
-public function updateFeedDataWidthDefaultTemplateParams(&$data, $templateId)
+public function updateFeedDataWithDefaultTemplateParams(&$data, $templateId)
 {
 $params = self::$widgetParams;
+$overrides = self::$widgetParamOverrides;
 foreach ($params as $component => $param) {
 $layoutParam = isset(self::$widgetTemplates[ $templateId ]['params'][ $component ]) ? self::$widgetTemplates[ $templateId ]['params'][ $component ] : null;
 if (is_array($param) && is_array($layoutParam)) {
 $params[ $component ] = array_merge($param, $layoutParam);
 }
 }
-
 $params['type'] = 'custom-style';
 foreach ($params as $key => $value) {
 if (is_array($value)) {
-$data['style'][$key] = array_merge($data['style'][$key] ?? [], $value);
+$data['style'][$key] = array_merge($data['style'][$key] ?? [], $value, $overrides[$key] ?? []);
 } else {
-$data['style'][$key] = $value;
+$data['style'][$key] = $overrides[$key] ?? $value;
 }
 }
 return $data;
@@ -409,6 +409,7 @@ switch ($key) {
 case 'profile_url':
 case 'image_url':
 case 'avatar_url':
+case 'author_img':
 case 'url':
 if ($this->isUrl($value)) {
 $data[ $key ] = esc_url_raw($value);
@@ -564,10 +565,10 @@ public static $widgetTemplates = array (
  'header' => 
  array (
  'enabled' => 'true',
- 'type' => '1',
+ 'type' => '3',
  'show_profile_picture' => 'true',
  'show_posts_number' => 'true',
- 'show_full_name' => 'false',
+ 'show_full_name' => 'true',
  'show_followers_number' => 'true',
  'show_username' => 'true',
  'show_follows_number' => 'false',
@@ -1320,10 +1321,10 @@ public static $widgetTemplates = array (
  'header' => 
  array (
  'enabled' => 'true',
- 'type' => '1',
+ 'type' => '3',
  'show_profile_picture' => 'true',
  'show_posts_number' => 'true',
- 'show_full_name' => 'false',
+ 'show_full_name' => 'true',
  'show_followers_number' => 'true',
  'show_username' => 'true',
  'show_follows_number' => 'false',
@@ -2074,10 +2075,10 @@ public static $widgetTemplates = array (
  'header' => 
  array (
  'enabled' => 'true',
- 'type' => '1',
+ 'type' => '3',
  'show_profile_picture' => 'true',
  'show_posts_number' => 'true',
- 'show_full_name' => 'false',
+ 'show_full_name' => 'true',
  'show_followers_number' => 'true',
  'show_username' => 'true',
  'show_follows_number' => 'false',
@@ -2678,10 +2679,10 @@ public static $widgetTemplates = array (
  'header' => 
  array (
  'enabled' => 'true',
- 'type' => '1',
+ 'type' => '3',
  'show_profile_picture' => 'true',
  'show_posts_number' => 'true',
- 'show_full_name' => 'false',
+ 'show_full_name' => 'true',
  'show_followers_number' => 'true',
  'show_username' => 'true',
  'show_follows_number' => 'false',
@@ -3259,6 +3260,17 @@ public static $widgetParams = array (
  ),
  ),
 );
+public static $widgetParamOverrides = array (
+ 'card' => 
+ array (
+ 'ratio' => 'portrait',
+ ),
+ 'custom_style' => 
+ array (
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ ),
+);
 public static $widgetHalfWidthLayouts = array (
  0 => 84,
  1 => 87,
@@ -3278,7 +3290,7 @@ if (!$feedData || !$templateId) {
 return;
 }
 if ($isPreview) {
-$this->updateFeedDataWidthDefaultTemplateParams($feedData, $templateId);
+$this->updateFeedDataWithDefaultTemplateParams($feedData, $templateId);
 $feedData['widget-key'] = $templateId;
 wp_enqueue_style($this->getCssKey($id), 'https://cdn.trustindex.io/assets/widget-presetted-css/'. $templateId .'-'. ucfirst($this->platformName) .'.css', [], $this->getVersion());
 }
@@ -3333,7 +3345,7 @@ $dataId = $this->getWidgetDataKey($id);
 $isWpWidget = isset($feedData);
 $enqueueData = function () use ($id, $feedData, $dataId, $isWpWidget) {
 $data = [
-'container' => $this->getContainerKey($id),
+'container' => esc_attr($this->getContainerKey($id)),
 ];
 if ($isWpWidget) {
 $data['data'] = $feedData;
@@ -3373,7 +3385,7 @@ return 'trustindex-feed-loader-js';
 }
 public function getAdminWidget($id)
 {
-return '<div id="'.$this->getContainerKey($this->registerWidget($id)).'"></div>';
+return '<div id="'.esc_attr($this->getContainerKey($this->registerWidget($id))).'"></div>';
 }
 
 

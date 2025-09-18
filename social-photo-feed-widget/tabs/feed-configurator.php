@@ -70,8 +70,9 @@ $feedData = $pluginManagerInstance->getFeedData();
 $feedData['style'] = [
 'locales' => $feedData['style']['locales'],
 'settings' => $feedData['style']['settings'],
+'version' => $feedData['style']['version'],
 ];
-$pluginManagerInstance->updateFeedDataWidthDefaultTemplateParams($feedData, $templateId);
+$pluginManagerInstance->updateFeedDataWithDefaultTemplateParams($feedData, $templateId);
 $pluginManagerInstance->saveFeedData($feedData, false);
 if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
@@ -230,7 +231,14 @@ array(
 (null !== $pluginManagerInstance->getWebhookUrl() ? array('webhook' => esc_attr(urlencode($pluginManagerInstance->getWebhookUrl()))) : array())
 );
 ?>
-<iframe src="<?php echo esc_url(add_query_arg($connectUrlParams, esc_attr($connectUrl))); ?>" id="ti-admin-iframe" scrolling="no" allowfullscreen="true"></iframe>
+<iframe src="<?php echo esc_url(add_query_arg($connectUrlParams, esc_attr($connectUrl))); ?>"
+id="ti-admin-iframe" scrolling="no" allowfullscreen="true"
+data-error-message="<?php echo esc_attr(implode("\n", [
+__('We couldn’t reach our server at the moment.', 'social-photo-feed-widget'),
+__('Please refresh the page or try again in 5 minutes.', 'social-photo-feed-widget'),
+__('This is only a temporary issue – no need to switch plugins, everything will be back to normal shortly.', 'social-photo-feed-widget')
+])); ?>"
+></iframe>
 
 <?php endif; ?>
 <?php elseif ($stepCurrent === 2): ?>
@@ -294,7 +302,15 @@ $feedData = $pluginManagerInstance->getFeedData();
 $iframeUrl = 'https://admin.trustindex.io/widget/edit/layout_id/'. esc_attr($template) .'/source/'. esc_attr(ucfirst($pluginManagerInstance->getShortName())) .'/iframe/1/layout-set/'. esc_attr($feedData['style']['type']);
 ?>
 <script type="application/json">{"data":<?php echo wp_json_encode($feedData); ?>}</script>
-<iframe id="ti-admin-iframe" class="ti-narrow-iframe" name="ti-widget-editor-iframe" data-src="<?php echo esc_url($iframeUrl . '?version='. esc_attr($pluginManagerInstance->getVersion())); ?>" scrolling="no" allowfullscreen="true"></iframe>
+<iframe id="ti-admin-iframe" class="ti-narrow-iframe" name="ti-widget-editor-iframe"
+data-src="<?php echo esc_url($iframeUrl . '?version='. esc_attr($pluginManagerInstance->getVersion())); ?>"
+scrolling="no" allowfullscreen="true"
+data-error-message="<?php echo esc_attr(implode("\n", [
+__('We couldn’t reach our server at the moment.', 'social-photo-feed-widget'),
+__('Please refresh the page or try again in 5 minutes.', 'social-photo-feed-widget'),
+__('This is only a temporary issue – no need to switch plugins, everything will be back to normal shortly.', 'social-photo-feed-widget')
+])); ?>"
+></iframe>
 </form>
 <?php else:
 $pluginManagerInstance->setNotificationParam('posts-download-finished', 'active', false);
