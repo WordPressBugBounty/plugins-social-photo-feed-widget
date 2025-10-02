@@ -7,6 +7,7 @@ private $platformName;
 private $version;
 private $shortname;
 public static $permissionNeeded = 'edit_pages';
+public static $downloadCheckSeconds = 5;
 public function __construct($shortname, $pluginFilePath, $version, $pluginName, $platformName)
 {
 $this->shortname = $shortname;
@@ -156,6 +157,18 @@ $this->setNotificationParam('token-renew', 'active', false);
 $this->setNotificationParam('token-expired', 'active', $isNotificationEnabled);
 $this->setNotificationParam('token-expired', 'do-check', false);
 }
+$isNotificationEnabled = $this->isNotificationEnabled('post-download-available');
+if ($isNotificationEnabled &&
+$this->getConnectedSource() &&
+!$this->isDownloadInProgress() &&
+$this->getDownloadAvailableTimestamp() < time() &&
+!$this->getNotificationParam('post-download-available', 'hidden') &&
+$this->getNotificationParam('post-download-available', 'do-check', true)
+) {
+$this->setNotificationParam('post-download-available', 'active', true);
+$this->setNotificationParam('post-download-available', 'do-check', false);
+
+}
 }
 public function deactivate()
 {
@@ -209,6 +222,18 @@ if (isset($source['name'])) {
 $source['name'] = json_decode($source['name']);
 }
 return $source;
+}
+public function isDownloadInProgress()
+{
+return [] !== get_option($this->getOptionName('connect-pending'), []);
+}
+public function isDownloadManual()
+{
+return str_contains($this->getConnectedSource()['subtype'] ?? '', 'username');
+}
+public function getDownloadAvailableTimestamp()
+{
+return 86400 * 10 + get_option($this->getOptionName('feed-data-downloaded'), 0);
 }
 public function deleteConnectedSource()
 {
@@ -279,6 +304,45 @@ $this->setNotificationParam('token-expired', 'active', false);
 }
 }
 return $data;
+}
+
+public function checkFeedDownload()
+{
+if ($this->isDownloadInProgress()) {
+return;
+}
+$source = $this->getConnectedSource();
+$params = [
+'is_feed_update' => true,
+'type' => 'Instagram',
+'subtypes' => $source['subtype'],
+'username' => $source['name'],
+'email' => get_option('admin_email'),
+'website' => get_option('siteurl'),
+];
+if ($webhook = $this->getWebhookUrl()) {
+$params['webhook'] = $webhook;
+}
+$response = wp_remote_get('https://admin.trustindex.io/source/check_feed_download_status', [
+'body' => $params,
+'timeout' => '30',
+'sslverify' => false,
+]);
+if (is_wp_error($response)) {
+return;
+}
+$data = json_decode($response['body'], true);
+if ($data['downloaded']) {
+update_option($this->getOptionName('feed-data-downloaded'), time(), false);
+$this->setNotificationParam('post-download-available', 'do-check', true);
+$this->setNotificationParam('post-download-available', 'active', false);
+return;
+}
+update_option(
+$this->getOptionName('connect-pending'),
+['username' => $source['name'], 'subtypes' => $source['subtype']],
+false
+);
 }
 public function saveFeedData($arr = [], $saveTime = true)
 {
@@ -366,6 +430,9 @@ $source['name'] = wp_json_encode($source['name']);
 }
 update_option($this->getOptionName('source'), $source, false);
 delete_option($this->getOptionName('connect-pending'));
+update_option($this->getOptionName('feed-data-downloaded'), time(), false);
+$this->setNotificationParam('post-download-available', 'do-check', true);
+$this->setNotificationParam('post-download-available', 'active', false);
 return $source;
 }
 public function updateFeedDataWithDefaultTemplateParams(&$data, $templateId)
@@ -379,6 +446,9 @@ $params[ $component ] = array_merge($param, $layoutParam);
 }
 }
 $params['type'] = 'custom-style';
+if ('masonry' === $params['layout']['type'] && isset($overrides['card']['ratio'])) {
+unset($overrides['card']['ratio']);
+}
 foreach ($params as $key => $value) {
 if (is_array($value)) {
 $data['style'][$key] = array_merge($data['style'][$key] ?? [], $value, $overrides[$key] ?? []);
@@ -485,8 +555,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -503,7 +573,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -526,7 +596,7 @@ public static $widgetTemplates = array (
  array (
  'type' => '1',
  'show_profile_picture' => 'true',
- 'show_username' => 'true',
+ 'show_username' => 'false',
  'show_like_num' => 'true',
  'show_comment_num' => 'true',
  'show_repost_num' => 'false',
@@ -536,7 +606,8 @@ public static $widgetTemplates = array (
  'media_layout' => 'single',
  'align' => 'top',
  'click_action' => 'lightbox',
- 'ratio' => 'square',
+ 'ratio' => 'portrait',
+ 'show_post_title' => 'true',
  ),
  'post_overflow' => 
  array (
@@ -636,8 +707,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -654,7 +725,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -687,7 +758,7 @@ public static $widgetTemplates = array (
  'media_layout' => 'single',
  'align' => 'top',
  'click_action' => 'lightbox',
- 'ratio' => 'square',
+ 'ratio' => 'portrait',
  ),
  'post_overflow' => 
  array (
@@ -787,8 +858,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0866FF',
+ 'header-btn-border-radius' => '6',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -805,7 +876,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -939,8 +1010,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#4285F4',
+ 'header-btn-border-radius' => '20',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -957,7 +1028,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
+ 'card-post-text-link-color' => '#4285f4',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -1207,7 +1278,7 @@ public static $widgetTemplates = array (
  array (
  'type' => 'slider',
  'cols_num_auto' => 'true',
- 'target_col_width' => '250',
+ 'target_col_width' => '350',
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '1',
@@ -1241,8 +1312,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#4285F4',
+ 'header-btn-border-radius' => '20',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -1259,7 +1330,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
+ 'card-post-text-link-color' => '#4285f4',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -1282,17 +1353,18 @@ public static $widgetTemplates = array (
  array (
  'type' => '1',
  'show_profile_picture' => 'true',
- 'show_username' => 'true',
+ 'show_username' => 'false',
  'show_like_num' => 'true',
  'show_comment_num' => 'true',
  'show_repost_num' => 'false',
  'show_date' => 'true',
- 'show_media_icon' => 'true',
+ 'show_media_icon' => 'false',
  'show_post_text' => 'true',
  'media_layout' => 'single',
  'align' => 'top',
  'click_action' => 'lightbox',
  'ratio' => 'square',
+ 'show_post_title' => 'true',
  ),
  'post_overflow' => 
  array (
@@ -1358,7 +1430,7 @@ public static $widgetTemplates = array (
  array (
  'type' => 'slider',
  'cols_num_auto' => 'true',
- 'target_col_width' => '200',
+ 'target_col_width' => '350',
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '2',
@@ -1392,8 +1464,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -1410,7 +1482,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -1443,7 +1515,8 @@ public static $widgetTemplates = array (
  'media_layout' => 'single',
  'align' => 'top',
  'click_action' => 'lightbox',
- 'ratio' => 'square',
+ 'ratio' => 'portrait',
+ 'show_post_title' => 'true',
  ),
  'post_overflow' => 
  array (
@@ -1509,7 +1582,7 @@ public static $widgetTemplates = array (
  array (
  'type' => 'slider',
  'cols_num_auto' => 'true',
- 'target_col_width' => '300',
+ 'target_col_width' => '350',
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '1',
@@ -1543,8 +1616,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0866FF',
+ 'header-btn-border-radius' => '6',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -1553,7 +1626,7 @@ public static $widgetTemplates = array (
  'loadmore-background-color' => '#efefef',
  'card-border-width' => '1',
  'card-border-color' => '#dedede',
- 'card-border-radius' => '10',
+ 'card-border-radius' => '0',
  'card-background-color' => '#ffffff',
  'card-padding' => '20',
  'card-post-font-size' => '14',
@@ -1561,7 +1634,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -1584,17 +1657,18 @@ public static $widgetTemplates = array (
  array (
  'type' => '3',
  'show_profile_picture' => 'true',
- 'show_username' => 'true',
+ 'show_username' => 'false',
  'show_like_num' => 'true',
  'show_comment_num' => 'true',
  'show_repost_num' => 'false',
  'show_date' => 'true',
- 'show_media_icon' => 'true',
+ 'show_media_icon' => 'false',
  'show_post_text' => 'true',
  'media_layout' => 'single',
  'align' => 'top',
  'click_action' => 'lightbox',
  'ratio' => 'square',
+ 'show_post_title' => 'true',
  ),
  'post_overflow' => 
  array (
@@ -1660,7 +1734,7 @@ public static $widgetTemplates = array (
  array (
  'type' => 'slider',
  'cols_num_auto' => 'false',
- 'target_col_width' => '300',
+ 'target_col_width' => '350',
  'cols_num' => '1',
  'loadmore' => 'true',
  'rows_num' => '1',
@@ -1694,8 +1768,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -1712,7 +1786,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -1735,17 +1809,18 @@ public static $widgetTemplates = array (
  array (
  'type' => '1',
  'show_profile_picture' => 'true',
- 'show_username' => 'true',
+ 'show_username' => 'false',
  'show_like_num' => 'true',
  'show_comment_num' => 'true',
  'show_repost_num' => 'false',
  'show_date' => 'true',
- 'show_media_icon' => 'true',
+ 'show_media_icon' => 'false',
  'show_post_text' => 'true',
  'media_layout' => 'single',
  'align' => 'top',
  'click_action' => 'lightbox',
- 'ratio' => 'square',
+ 'ratio' => 'portrait',
+ 'show_post_title' => 'true',
  ),
  'post_overflow' => 
  array (
@@ -1995,8 +2070,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -2005,7 +2080,7 @@ public static $widgetTemplates = array (
  'loadmore-background-color' => '#efefef',
  'card-border-width' => '1',
  'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
+ 'card-border-radius' => '16',
  'card-background-color' => '#ffffff',
  'card-padding' => '20',
  'card-post-font-size' => '14',
@@ -2013,7 +2088,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -2046,7 +2121,7 @@ public static $widgetTemplates = array (
  'media_layout' => 'single',
  'align' => 'top',
  'click_action' => 'lightbox',
- 'ratio' => 'square',
+ 'ratio' => 'portrait',
  ),
  'post_overflow' => 
  array (
@@ -2599,8 +2674,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -2617,7 +2692,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -2750,8 +2825,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -2901,8 +2976,8 @@ public static $widgetTemplates = array (
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
@@ -2919,7 +2994,7 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
@@ -3584,6 +3659,11 @@ wp_enqueue_style('trustindex-feed-admin-'. $this->getShortName(), $this->getPlug
 }
 if (file_exists($this->getPluginDir() . 'assets' . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'admin.js')) {
 wp_enqueue_script('trustindex-feed-admin-'. $this->getShortName(), $this->getPluginFileUrl('assets/js/admin.js'), [], $this->getVersion(), [ 'in_footer' => false ]);
+wp_localize_script('trustindex-feed-admin-'. $this->getShortName(), 'ajax_object', [
+'ajax_url' => admin_url('admin-ajax.php'),
+'nonce' => wp_create_nonce('ti-download-check'),
+'interval' => self::$downloadCheckSeconds * 1000,
+]);
 }
 }
 wp_register_script('trustindex_admin_notification', $this->getPluginFileUrl('assets/js/admin-notification.js'), [], $this->getVersion(), [ 'in_footer' => false ]);
@@ -3689,7 +3769,31 @@ $this->displayImg(str_replace('%platform%', ucfirst($this->getShortName()), 'htt
  '<br/><a href="#">'. __('Click here to reconnect', 'social-photo-feed-widget') .'</a>'.
  '</p>',
 ],
-'posts-download-finished' => [
+'post-download-available' => [
+'type' => 'warning',
+'extra-class' => "",
+'button-text' => __('Download your latest posts! »', 'social-photo-feed-widget'),
+'is-closeable' => true,
+'hide-on-close' => true,
+'hide-on-open' => true,
+'remind-later-button' => false,
+'redirect' => '?page='.$this->getPluginSlug().'/admin.php&tab=my-posts',
+/* translators: %s: Platform name */
+'text' => sprintf(__('You can update your %s feed posts.', 'social-photo-feed-widget'), ucfirst($this->getShortName())),
+],
+'post-download-finished' => [
+'type' => 'warning',
+'extra-class' => "",
+'button-text' => __('Check your latest posts! »', 'social-photo-feed-widget'),
+'is-closeable' => true,
+'hide-on-close' => true,
+'hide-on-open' => true,
+'remind-later-button' => false,
+'redirect' => '?page='.$this->getPluginSlug().'/admin.php&tab=my-posts',
+/* translators: %s: Platform name */
+'text' => sprintf(__('Your new %s posts have been downloaded.', 'social-photo-feed-widget'), ucfirst($this->getShortName())),
+],
+'connect-finished' => [
 'type' => 'info',
 'extra-class' => "",
 /* translators: %s: Platform name */
@@ -3779,8 +3883,6 @@ public function getNotificationEmailContent($type)
 {
 $subject = '';
 $message = '';
-switch ($type) {
-case 'posts-download-finished':
 $username = '';
 $source = get_option($this->getOptionName('connect-pending'), []);
 if (isset($source['username'])) {
@@ -3788,6 +3890,8 @@ $username = $source['username'];
 } elseif ($source = $this->getConnectedSource()) {
 $username = $source['name'];
 }
+switch ($type) {
+case 'connect-finished':
 $link = admin_url('admin.php?page='.$this->getPluginSlug().'/admin.php&tab=feed-configurator&step=2');
 $subject = 'Create your Instagram feed widget';
 $message = strtr(
@@ -3822,6 +3926,63 @@ body[yahoo] .button a { background-color: #69b899; padding: 15px 25px !important
 <tr>
 <td bgcolor="#ffffff" style="padding: 0 20px 20px 20px; color: #222222; font-family: Arial, sans-serif; font-size: 15px; line-height: 24px;">
 Your Instagram account (@%username%) has been successfully connected and the posts have been downloaded – you can now create your Instagram feed widget.<p style="text-align: center; padding: 30px;"><a href="%link%" style="background-color: #2AA8D7; margin: 10px; padding: 20px; border-radius: 4px; color: #ffffff; text-decoration: none; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; display: block;">Create Instagram Feed Widget</a></p></td>
+</tr>
+<tr>
+<td align="center" bgcolor="#242F62" style="padding: 15px 10px 15px 10px; color: #ffffff; font-family: Arial, sans-serif; font-size: 12px; line-height: 18px;">
+2018-2025 &copy; <b>Trustindex.io</b><br/>
+<a target="_blank" href="https://www.trustindex.io" style="color:#ffffff;">https://www.trustindex.io</a>
+</td>
+</tr>
+</table>
+<!--[if (gte mso 9)|(IE)]>
+</td>
+</tr>
+</table>
+<![endif]-->
+</body>
+</html>
+',
+[
+'%username%' => $username,
+'%link%' => $link,
+]
+);
+break;
+case 'post-download-finished':
+$link = admin_url('admin.php?page='.$this->getPluginSlug().'/admin.php&tab=my-posts');
+$subject = 'New posts have been added to your feed';
+$message = strtr(
+'<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>New posts have been added to your feed</title>
+<meta name="viewport" content="width=device-width" />
+ <style type="text/css">
+@media only screen and (max-width: 550px), screen and (max-device-width: 550px) {
+body[yahoo] .buttonwrapper { background-color: transparent !important; }
+body[yahoo] .button { padding: 0 !important; }
+body[yahoo] .button a { background-color: #69b899; padding: 15px 25px !important; }
+}
+@media only screen and (min-device-width: 601px) {
+.content { width: 600px !important; }
+.col387 { width: 387px !important; }
+}
+</style>
+</head>
+<body bgcolor="#f9f9f9" style="margin: 0; padding: 10px; background-color: #f9f9f9;" yahoo="fix">
+<!--[if (gte mso 9)|(IE)]>
+<table width="600" align="center" cellpadding="0" cellspacing="0" border="0">
+ <tr>
+<td>
+<![endif]-->
+<table align="center" border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 600px; background-color: white; border: 1px solid #ccc;" class="content">
+<tr>
+<td style="padding: 15px 10px;"> </td>
+</tr>
+<tr>
+<td bgcolor="#ffffff" style="padding: 0 20px 20px 20px; color: #222222; font-family: Arial, sans-serif; font-size: 15px; line-height: 24px;">
+Your Instagram account (@%username%) has been refreshed and new posts are now available.<br /> Check out the latest posts on your list and manage your feed.<p style="text-align: center; padding: 30px;"><a href="%link%" style="background-color: #2AA8D7; margin: 10px; padding: 20px; border-radius: 4px; color: #ffffff; text-decoration: none; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; display: block;">View Posts</a></p></td>
 </tr>
 <tr>
 <td align="center" bgcolor="#242F62" style="padding: 15px 10px 15px 10px; color: #ffffff; font-family: Arial, sans-serif; font-size: 12px; line-height: 18px;">
@@ -3896,6 +4057,8 @@ return [
 'connect-pending',
 'feed-data',
 'feed-data-saved',
+'feed-data-downloaded',
+'feed-data-download-checked',
 'public-id',
 'token-expires',
 'css-content',

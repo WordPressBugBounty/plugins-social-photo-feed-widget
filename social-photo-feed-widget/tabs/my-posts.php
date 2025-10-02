@@ -2,6 +2,7 @@
 defined('ABSPATH') or die('No script kiddies please!');
 $feedData = $pluginManagerInstance->getFeedData();
 $hiddenPosts = $feedData['style']['settings']['hidden_posts'];
+$downloadAvailableTimestamp = $pluginManagerInstance->getDownloadAvailableTimestamp();
 if (isset($_GET['toggle-hide'])) {
 check_admin_referer('ti-toggle-hide');
 $id = sanitize_text_field(wp_unslash($_GET['toggle-hide']));
@@ -17,15 +18,55 @@ if (isset($_GET['page']) && isset($_GET['tab'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field(wp_unslash($_GET['tab'])));
 }
 exit;
+} elseif (isset($_GET['download'])) {
+if ('posts' === $_GET['download']) {
+check_admin_referer('ti-download-posts');
+
+$pluginManagerInstance->checkFeedDownload();
+header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field(wp_unslash($_GET['tab'])));
+}
 }
 $pluginManagerInstance->registerLoaderScript();
 $posts = $feedData['posts'];
+$pluginManagerInstance->setNotificationParam('post-download-finished', 'active', false);
+$pluginManagerInstance->setNotificationParam('post-download-finished', 'do-check', true);
 ?>
 <div class="ti-header-title"><?php echo esc_html(__('My Posts', 'social-photo-feed-widget')); ?></div>
 <div class="ti-box">
+
+<?php if ($pluginManagerInstance->isDownloadManual()): ?>
+<?php if ($downloadAvailableTimestamp <= time()): ?>
+<?php if ($pluginManagerInstance->isDownloadInProgress()): ?>
+<a class="ti-btn ti-btn-lg ti-btn-loading ti-btn-disabled ti-tooltip ti-show-tooltip ti-tooltip-light ti-mb-1 btn-download-posts" href="#">
+<span class="ti-tooltip-message"><?php echo esc_html(__('Downloading your latest posts... This may take 1–3 minutes.', 'social-photo-feed-widget')); ?></span>
+</a>
+<?php else: ?>
+<a class="ti-btn ti-btn-lg ti-btn-loading-on-click ti-tooltip ti-show-tooltip ti-tooltip-light ti-mb-1 btn-download-posts"
+ href="<?php echo esc_url(wp_nonce_url('?page='. sanitize_text_field(wp_unslash($_GET['page'])) .'&tab=my-posts&download=posts', 'ti-download-posts')); ?>">
+<?php echo esc_html(__('Download new posts', 'social-photo-feed-widget'));?>
+<span class="ti-tooltip-message"><?php echo esc_html(__('Now, you can download your new posts.', 'social-photo-feed-widget')); ?></span>
+</a>
+<?php endif; ?>
+<?php else: ?>
+<?php $days = ceil(($downloadAvailableTimestamp - time()) / 86400); ?>
+<a href="#" class="ti-btn ti-btn-lg ti-btn-disabled ti-tooltip ti-show-tooltip ti-tooltip-light ti-mb-1">
+<?php echo esc_html(__('Download new posts', 'social-photo-feed-widget')); ?>
+<span class="ti-tooltip-message">
+<?php
+/* translators: %d: Number of days until manual download is available again. */
+echo esc_html(sprintf(__('The manual post download will be available again in %d day(s).', 'social-photo-feed-widget'), $days));
+?>
+</span>
+</a>
+<?php endif; ?>
+<?php endif; ?>
 <div class="ti-upgrade-notice">
 <strong><?php echo esc_html(__('UPGRADE to PRO Features', 'social-photo-feed-widget')); ?></strong>
+<?php if ($pluginManagerInstance->isDownloadManual()): ?>
+<p><?php echo esc_html(__('No more manual refresh! With PRO your feed updates automatically – plus get unlimited posts, multiple feed widgets with custom style settings, widget popups, and access to 9 social platforms. Showcase your content like a pro!', 'social-photo-feed-widget')); ?></p>
+<?php else: ?>
 <p><?php echo esc_html(__('Get unlimited posts, multiple feed widgets with custom style settings, widget popups, and access to 9 social platforms – everything you need to showcase your content like a pro!', 'social-photo-feed-widget')); ?></p>
+<?php endif; ?>
 <a class="ti-btn" href="https://www.trustindex.io?a=sys&c=wp-instagram-feed-pro" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
 </div>
 <?php if (!count($posts)): ?>
@@ -79,7 +120,8 @@ $text = substr($text,0,120) . '...';
 </td>
 <?php if (isset($_GET['page'])): ?>
 <td>
-<a href="<?php echo esc_url(wp_nonce_url('?page='. sanitize_text_field(wp_unslash($_GET['page'])) .'&tab=my-posts&toggle-hide='. esc_attr($post['id']), 'ti-toggle-hide')); ?>" class="ti-btn ti-btn-sm ti-btn-default btn-toggle-hide">
+<a href="<?php echo esc_url(wp_nonce_url('?page='. sanitize_text_field(wp_unslash($_GET['page'])) .'&tab=my-posts&toggle-hide='. esc_attr($post['id']), 'ti-toggle-hide')); ?>"
+ class="ti-btn ti-btn-sm ti-btn-default btn-toggle-hide <?php if ($pluginManagerInstance->isDownloadInProgress()): ?>ti-btn-disabled<?php endif; ?>">
 <?php if ($isHidden): ?>
 <?php echo esc_html(__('Show post', 'social-photo-feed-widget')); ?>
 <?php else: ?>

@@ -5,7 +5,7 @@ Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 Tags: instagram, instagram feed, instagram gallery, instagram photos, instagram widget
-Version: 1.7.4
+Version: 1.7.5
 Requires at least: 6.2
 Requires PHP: 7.0
 Author: Trustindex.io <support@trustindex.io>
@@ -27,7 +27,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.7.4", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.7.5", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);
@@ -101,17 +101,24 @@ $nonce = $request->get_param('nonce');
 if (!wp_verify_nonce($nonce, 'admin_action_nonce')) {
 return new WP_REST_Response(['error' => 'Invalid nonce'], 403);
 }
-$isConnecting = !empty(get_option($pluginManagerInstance->getOptionName('connect-pending'), []));
+$oldSource = $pluginManagerInstance->getConnectedSource();
 /*
 This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
 */
 $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($request->get_param('data')), false);
 $source = $pluginManagerInstance->saveConnectedSource($source);
-if ($isConnecting && empty($source['error'])) {
-$notificationType = 'posts-download-finished';
+if (empty($source['error']) && !$pluginManagerInstance->isDownloadInProgress()) {
+$lastDownloadChecked = get_option($pluginManagerInstance->getOptionName('feed-data-download-checked'), 0);
+if ($lastDownloadChecked + $pluginManagerInstance::$downloadCheckSeconds + 1 < time()) {
+if ($oldSource) {
+$notificationType = 'post-download-finished';
+} else {
+$notificationType = 'connect-finished';
+}
 $pluginManagerInstance->sendNotificationEmail($notificationType);
 $pluginManagerInstance->setNotificationParam($notificationType, 'active', true);
 $pluginManagerInstance->setNotificationParam($notificationType, 'do-check', false);
+}
 }
 return new WP_REST_Response([
 'token' => get_option($pluginManagerInstance->getOptionName('public-id')),
@@ -119,6 +126,11 @@ return new WP_REST_Response([
 },
 'permission_callback' => '__return_true',
 ]);
+});
+add_action('wp_ajax_download_check', function() use ($pluginManagerInstance) {
+check_ajax_referer('ti-download-check', 'nonce');
+update_option($pluginManagerInstance->getOptionName('feed-data-download-checked'), time(), false);
+wp_send_json(['downloaded' => !$pluginManagerInstance->isDownloadInProgress()]);
 });
 add_action('admin_notices', function() use ($pluginManagerInstance) {
 if (!current_user_can($pluginManagerInstance::$permissionNeeded)) {

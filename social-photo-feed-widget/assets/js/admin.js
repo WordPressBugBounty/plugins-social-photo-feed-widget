@@ -114,7 +114,7 @@ jQuery(document).ready(function($) {
 				$('.ti-container').replaceWith('<div id="ti-assets-error" class="notice notice-error"><p>'+iframe.data('error-message').replaceAll("\n",'<br>')+'</p></div>');
 				$('.ti-step-buttons').remove();
 			}
-		}, 5000);
+		}, 15000);
 	}
 
 	// widget editor form
@@ -177,6 +177,19 @@ jQuery(document).ready(function($) {
 	}
 	if (!loadProxyImages()) {
 		document.addEventListener('trustindex-feed-loader-ready', loadProxyImages);
+	}
+
+	let downloadInProgress = document.querySelector('.btn-download-posts.ti-btn-loading');
+	if (downloadInProgress) {
+		setInterval(() => {
+			fetch(ajax_object.ajax_url + '?action=download_check&nonce=' + ajax_object.nonce)
+				.then(res => res.json())
+				.then(data => {
+					if (data.downloaded) {
+						window.location.reload();
+					}
+				});
+		}, ajax_object.interval);
 	}
 });
 

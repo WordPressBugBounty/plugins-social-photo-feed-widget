@@ -313,7 +313,7 @@ __('This is only a temporary issue – no need to switch plugins, everything wil
 ></iframe>
 </form>
 <?php else:
-$pluginManagerInstance->setNotificationParam('posts-download-finished', 'active', false);
+$pluginManagerInstance->setNotificationParam('connect-finished', 'active', false);
 ?>
 <div class="ti-box ti-mb-2">
 <div class="ti-box-header"><?php echo esc_html(__('Insert this shortcode into your website', 'social-photo-feed-widget')); ?></div>
