@@ -18,11 +18,9 @@ exit;
 }
 if (isset($_GET['notification'])) {
 if (isset($_GET['action'])) {
+check_admin_referer('ti-notification');
 $type = sanitize_text_field(wp_unslash($_GET['notification']));
 $action = sanitize_text_field(wp_unslash($_GET['action']));
-if (!isset($_GET['notification_action_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['notification_action_nonce'])), 'ti-' . $type . '_' . $action)) {
-wp_die('Security check failed');
-}
 $options = $pluginManagerInstance->getNotificationOptions($type);
 switch ($action) {
 case 'later':

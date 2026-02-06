@@ -8,12 +8,18 @@ if (isset($_POST['data'])) {
 /*
 This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
 */
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
 $pluginManagerInstance->saveConnectedSource($source, isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : null);
 }
 if (isset($_GET['page'])) {
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field($selectedTab));
 }
+exit;
+}
+else if ('source-connection-failed' === $_REQUEST['command']) {
+check_admin_referer('ti-connect-source');
+delete_option($pluginManagerInstance->getOptionName('connect-pending'));
 exit;
 }
 else if ('source-connecting' === $_REQUEST['command']) {
@@ -27,6 +33,7 @@ if (isset($_POST['data'])) {
 /*
 This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
 */
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
 }
 update_option($pluginManagerInstance->getOptionName('connect-pending'), $source, false);
@@ -86,6 +93,7 @@ if (isset($_POST['data'])) {
 /*
 This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
 */
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 $data = $pluginManagerInstance->sanitizeJsonData(wp_unslash($_POST['data']));
 }
 if ($data) {
@@ -224,7 +232,6 @@ $connectUrl .= '/public_id/'.get_option($pluginManagerInstance->getOptionName('p
 $connectUrlParams = array_merge(
 isset($connectPending['error']) ? [] : $connectPending,
 array(
-'email' => esc_attr(urlencode(get_option('admin_email'))),
 'website' => esc_attr(urlencode(get_option('siteurl'))),
 'version' => esc_attr($pluginManagerInstance->getVersion()),
 ),

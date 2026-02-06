@@ -38,7 +38,12 @@ $pluginManagerInstance->setNotificationParam('post-download-finished', 'do-check
 <?php if ($downloadAvailableTimestamp <= time()): ?>
 <?php if ($pluginManagerInstance->isDownloadInProgress()): ?>
 <a class="ti-btn ti-btn-lg ti-btn-loading ti-btn-disabled ti-tooltip ti-show-tooltip ti-tooltip-light ti-mb-1 btn-download-posts" href="#">
-<span class="ti-tooltip-message"><?php echo esc_html(__('Downloading your latest posts... This may take 1–3 minutes.', 'social-photo-feed-widget')); ?></span>
+<span class="ti-tooltip-message" id="download-message"
+ data-overtime-message="<?php
+ /* translators: %s: Platform name */
+ echo esc_html(sprintf(__('Downloading your %s posts... Sorry, the download is taking longer than expected. We’re on it — thank you for your patience.', 'social-photo-feed-widget'), 'Instagram'));
+ ?>"
+><?php echo esc_html(__('Downloading your latest posts... This may take 1–3 minutes.', 'social-photo-feed-widget')); ?></span>
 </a>
 <?php else: ?>
 <a class="ti-btn ti-btn-lg ti-btn-loading-on-click ti-tooltip ti-show-tooltip ti-tooltip-light ti-mb-1 btn-download-posts"

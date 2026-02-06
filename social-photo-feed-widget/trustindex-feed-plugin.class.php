@@ -34,7 +34,7 @@ $response = wp_remote_get('https://admin.trustindex.io/api/testWordpressWebbookU
 if (is_wp_error($response)) {
 return null;
 }
-$json = json_decode($response['body'], true);
+$json = json_decode(wp_remote_retrieve_body($response), true);
 if (!$json || !isset($json['valid']) || true !== $json['valid']) {
 return null;
 }
@@ -135,7 +135,7 @@ $this->loadI18N();
 include $this->getPluginDir() . 'include' . DIRECTORY_SEPARATOR . 'update.php';
 if (get_option($this->getOptionName('activation-redirect'))) {
 delete_option($this->getOptionName('activation-redirect'));
-wp_redirect(admin_url('admin.php?page=' . $this->getPluginSlug() . '/admin.php'));
+wp_safe_redirect(admin_url('admin.php?page=' . $this->getPluginSlug() . '/admin.php'));
 exit;
 }
 $tokenExpireTimestamp = (int)get_option($this->getOptionName('token-expires'));
@@ -188,7 +188,10 @@ ob_start();
 }
 public function loadI18N()
 {
-load_plugin_textdomain($this->getPluginSlug(), false, $this->getPluginSlug() . DIRECTORY_SEPARATOR . 'languages');
+load_textdomain(
+$this->getPluginSlug(),
+$this->getPluginDir().'/languages/'.$this->getPluginSlug().'-'.get_locale().'.mo'
+);
 }
 
 
@@ -252,7 +255,7 @@ wp_remote_post('https://admin.trustindex.io/source/saveFeedWordpress', [
 ]);
 return true;
 }
-public function getFeedData()
+public function getFeedData(bool $forceRefresh = false)
 {
 $data = [];
 if ($jsonStr = get_option($this->getOptionName('feed-data'), "")) {
@@ -279,7 +282,7 @@ break 2;
 }
 }
 }
-if (!$data || $dataSaved > (12 * 3600) || !$allImageReplaced) {
+if (!$data || $dataSaved > (12 * 3600) || !$allImageReplaced || $forceRefresh) {
 $publicId = get_option($this->getOptionName('public-id'));
 if (!$publicId) {
 return $data;
@@ -292,7 +295,13 @@ if (is_wp_error($response)) {
 echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($response)));
 die;
 }
-$data = $this->updateFeedData(json_decode($response['body'], true), $data);
+try {
+$newData = json_decode(wp_remote_retrieve_body($response), true, 512, JSON_THROW_ON_ERROR);
+} catch (Exception $e) {
+echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($e->getMessage())));;
+die;
+}
+$data = $this->updateFeedData($newData, $data);
 if ($tokenExpires = strtotime($data['token_expires'] ?? '')) {
 update_option($this->getOptionName('token-expires'), $tokenExpires, false);
 if (time() > $tokenExpires) {
@@ -317,7 +326,6 @@ $params = [
 'type' => 'Instagram',
 'subtypes' => $source['subtype'],
 'username' => $source['name'],
-'email' => get_option('admin_email'),
 'website' => get_option('siteurl'),
 ];
 if ($webhook = $this->getWebhookUrl()) {
@@ -346,8 +354,8 @@ false
 }
 public function saveFeedData($arr = [], $saveTime = true)
 {
-update_option($this->getOptionName('feed-data'), wp_json_encode($arr), false);
-if ($saveTime) {
+$updated = update_option($this->getOptionName('feed-data'), wp_json_encode($arr), false);
+if ($updated && $saveTime) {
 update_option($this->getOptionName('feed-data-saved'), time(), false);
 }
 }
@@ -509,33 +517,56 @@ public static $widgetCategories = array (
 public static $widgetTemplates = array (
  94 => 
  array (
- 'name' => 'Grid - Card 1',
+ 'name' => 'Grid I.',
  'category' => 'grid',
  'params' => 
  array (
- 'footer' => 
+ 'arrow' => 
  array (
- 'enabled' => 'true',
+ 'type' => '1',
  ),
- 'layout' => 
+ 'autoplay_widget' => 
  array (
- 'type' => 'grid',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '350',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'true',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
  ),
  'custom_style' => 
  array (
- 'gap' => '14',
+ 'gap' => '10',
  'widget-margin-top' => '0',
  'widget-margin-bottom' => '40',
  'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
  'post_lines' => '4',
  'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
  'widget-background-color' => 'transparent',
  'widget-padding-top' => '0',
  'widget-padding-bottom' => '0',
@@ -544,20 +575,21 @@ public static $widgetTemplates = array (
  'widget-border-weight' => '0',
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
- 'widget-body-height' => '',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
  'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
+ 'header-padding-bottom' => '20',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
  'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#0095f6',
  'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
  'dots-background-color' => '#efefef',
@@ -565,7 +597,7 @@ public static $widgetTemplates = array (
  'loadmore-background-color' => '#efefef',
  'card-border-width' => '1',
  'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
+ 'card-border-radius' => '12',
  'card-background-color' => '#ffffff',
  'card-padding' => '20',
  'card-post-font-size' => '14',
@@ -575,6 +607,7 @@ public static $widgetTemplates = array (
  'card-muted-color' => '#555555',
  'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
  'card-shadow-blur' => '0',
@@ -582,56 +615,12 @@ public static $widgetTemplates = array (
  'card-profile-image-size' => '36',
  'plaform-icon-original-color' => 'false',
  'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
  ),
- 'arrow' => 
+ 'footer' => 
  array (
- 'type' => '3',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'false',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'portrait',
- 'show_post_title' => 'true',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
+ 'enabled' => 'true',
  ),
  'header' => 
  array (
@@ -644,50 +633,92 @@ public static $widgetTemplates = array (
  'show_username' => 'true',
  'show_follows_number' => 'false',
  'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'grid',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
  'lightbox' => 
  array (
  'enabled' => 'true',
  'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
  'show_like_num' => 'true',
  'show_comments' => 'true',
  'show_date' => 'true',
  'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
  ),
  ),
  'is-active' => true,
  ),
  93 => 
  array (
- 'name' => 'Grid - Card 2',
+ 'name' => 'Grid II.',
  'category' => 'grid',
  'params' => 
  array (
- 'footer' => 
+ 'arrow' => 
  array (
- 'enabled' => 'true',
+ 'type' => '3',
  ),
- 'layout' => 
+ 'autoplay_widget' => 
  array (
- 'type' => 'grid',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
  ),
  'custom_style' => 
  array (
- 'gap' => '1',
+ 'gap' => '10',
  'widget-margin-top' => '0',
  'widget-margin-bottom' => '40',
  'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
  'post_lines' => '4',
  'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
  'widget-background-color' => 'transparent',
  'widget-padding-top' => '0',
  'widget-padding-bottom' => '0',
@@ -696,26 +727,27 @@ public static $widgetTemplates = array (
  'widget-border-weight' => '0',
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
- 'widget-body-height' => '',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
  'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
+ 'header-padding-bottom' => '20',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
  'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#0095f6',
  'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
  'dots-background-color' => '#efefef',
  'loadmore-color' => '#000000',
  'loadmore-background-color' => '#efefef',
- 'card-border-width' => '0',
+ 'card-border-width' => '1',
  'card-border-color' => '#dedede',
  'card-border-radius' => '0',
  'card-background-color' => '#ffffff',
@@ -727,6 +759,7 @@ public static $widgetTemplates = array (
  'card-muted-color' => '#555555',
  'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
  'card-shadow-blur' => '0',
@@ -734,101 +767,100 @@ public static $widgetTemplates = array (
  'card-profile-image-size' => '36',
  'plaform-icon-original-color' => 'false',
  'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
  ),
- 'arrow' => 
+ 'footer' => 
  array (
- 'type' => '2',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '2',
- 'show_profile_picture' => 'false',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'false',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'portrait',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
+ 'enabled' => 'true',
  ),
  'header' => 
  array (
  'enabled' => 'true',
- 'type' => '1',
+ 'type' => '3',
  'show_profile_picture' => 'true',
  'show_posts_number' => 'true',
- 'show_full_name' => 'false',
+ 'show_full_name' => 'true',
  'show_followers_number' => 'true',
  'show_username' => 'true',
  'show_follows_number' => 'false',
  'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'grid',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '350',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
  'lightbox' => 
  array (
  'enabled' => 'true',
  'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
  'show_like_num' => 'true',
  'show_comments' => 'true',
  'show_date' => 'true',
  'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
  ),
  ),
  'is-active' => true,
  ),
  96 => 
  array (
- 'name' => 'Grid - Card 3',
+ 'name' => 'Grid III.',
  'category' => 'grid',
  'params' => 
  array (
- 'footer' => 
+ 'arrow' => 
  array (
- 'enabled' => 'true',
+ 'type' => '1',
  ),
- 'layout' => 
+ 'autoplay_widget' => 
  array (
- 'type' => 'grid',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '2',
- 'infinity_loop' => 'false',
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
  ),
  'custom_style' => 
  array (
@@ -836,10 +868,10 @@ public static $widgetTemplates = array (
  'widget-margin-top' => '0',
  'widget-margin-bottom' => '40',
  'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
  'post_lines' => '4',
  'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'hover-only',
- 'widget-background-color' => 'transparent',
+ 'widget-background-color' => 'rgba(255, 255, 255, 0)',
  'widget-padding-top' => '0',
  'widget-padding-bottom' => '0',
  'widget-padding-left' => '0',
@@ -847,20 +879,21 @@ public static $widgetTemplates = array (
  'widget-border-weight' => '0',
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
- 'widget-body-height' => '',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
  'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
+ 'header-padding-bottom' => '20',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
  'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#0866FF',
- 'header-btn-border-radius' => '6',
- 'header-instagram-avatar-border' => 'true',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
  'dots-background-color' => '#efefef',
@@ -868,7 +901,7 @@ public static $widgetTemplates = array (
  'loadmore-background-color' => '#efefef',
  'card-border-width' => '1',
  'card-border-color' => '#dedede',
- 'card-border-radius' => '6',
+ 'card-border-radius' => '12',
  'card-background-color' => '#ffffff',
  'card-padding' => '20',
  'card-post-font-size' => '14',
@@ -877,121 +910,120 @@ public static $widgetTemplates = array (
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
  'card-post-text-link-color' => '#0064D1',
- 'card-media-border-radius' => '0',
+ 'card-media-border-radius' => '12',
+ 'card-hover-accent-bar' => 'true',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
  'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0)',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
  'card-profile-image-size' => '36',
  'plaform-icon-original-color' => 'true',
  'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
  ),
- 'arrow' => 
+ 'footer' => 
  array (
- 'type' => '3',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '3',
- 'show_profile_picture' => 'false',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'show_post_media' => 'true',
- 'media_layout' => 'carousel',
- 'align' => 'top',
- 'ratio' => 'square',
- 'click_action' => 'lightbox',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
+ 'enabled' => 'true',
  ),
  'header' => 
  array (
  'enabled' => 'true',
- 'type' => '1',
+ 'type' => '3',
  'show_profile_picture' => 'true',
  'show_posts_number' => 'true',
- 'show_full_name' => 'false',
+ 'show_full_name' => 'true',
  'show_followers_number' => 'true',
  'show_username' => 'true',
  'show_follows_number' => 'false',
  'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'grid',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '2',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
  'lightbox' => 
  array (
  'enabled' => 'true',
  'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
  'show_like_num' => 'true',
  'show_comments' => 'true',
  'show_date' => 'true',
  'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
  ),
  ),
  'is-active' => true,
  ),
  63 => 
  array (
- 'name' => 'Grid - Card 4',
+ 'name' => 'Grid IV.',
  'category' => 'grid',
  'params' => 
  array (
- 'footer' => 
+ 'arrow' => 
  array (
- 'enabled' => 'true',
+ 'type' => '2',
  ),
- 'layout' => 
+ 'autoplay_widget' => 
  array (
- 'type' => 'grid',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '2',
- 'infinity_loop' => 'false',
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
  ),
  'custom_style' => 
  array (
- 'gap' => '10',
+ 'gap' => '5',
  'widget-margin-top' => '0',
  'widget-margin-bottom' => '40',
  'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
  'post_lines' => '4',
  'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
+ 'widget-background-color' => 'rgba(255, 255, 255, 0)',
  'widget-padding-top' => '0',
  'widget-padding-bottom' => '0',
  'widget-padding-left' => '0',
@@ -999,7 +1031,8 @@ public static $widgetTemplates = array (
  'widget-border-weight' => '0',
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
- 'widget-body-height' => '',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
  'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
@@ -1007,85 +1040,43 @@ public static $widgetTemplates = array (
  'header-padding-left' => '0',
  'header-padding-right' => '0',
  'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#4285F4',
- 'header-btn-border-radius' => '20',
- 'header-instagram-avatar-border' => 'true',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
  'dots-background-color' => '#efefef',
  'loadmore-color' => '#000000',
  'loadmore-background-color' => '#efefef',
  'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '6',
- 'card-background-color' => '#ffffff',
+ 'card-border-color' => '#000000',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#f2f2f2',
  'card-padding' => '20',
  'card-post-font-size' => '14',
  'card-header-font-size' => '14',
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#4285f4',
+ 'card-muted-color' => '#6c6c6c',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'false',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
  'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0)',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
  'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'true',
+ 'plaform-icon-original-color' => 'false',
  'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
  ),
- 'arrow' => 
+ 'footer' => 
  array (
- 'type' => '3',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '4',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'grid',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'square',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
+ 'enabled' => 'true',
  ),
  'header' => 
  array (
@@ -1098,145 +1089,298 @@ public static $widgetTemplates = array (
  'show_username' => 'true',
  'show_follows_number' => 'false',
  'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'grid',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '220',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '2',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
  'lightbox' => 
  array (
  'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
+ 'type' => 'scroller',
  'show_like_num' => 'true',
  'show_comments' => 'true',
  'show_date' => 'true',
  'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
  ),
  ),
  'is-active' => true,
  ),
  92 => 
  array (
- 'name' => 'Grid - Mini',
+ 'name' => 'Grid V.',
  'category' => 'grid',
  'params' => 
  array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'false',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
  'footer' => 
  array (
  'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
  ),
  'layout' => 
  array (
  'type' => 'grid',
- 'cols_num_auto' => 'false',
- 'target_col_width' => '250',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '350',
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '3',
+ 'width' => 'lg',
  'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
- 'custom_style' => 
+ 'lightbox' => 
  array (
- 'gap' => '1',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '55',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '0',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'false',
- 'plaform-icon-color' => '#000000',
+ 'enabled' => 'true',
+ 'type' => 'media',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
  ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 134 => 
+ array (
+ 'name' => 'Grid VI.',
+ 'category' => 'grid',
+ 'params' => 
+ array (
  'arrow' => 
  array (
- 'type' => '3',
+ 'type' => '1',
  ),
  'autoplay_widget' => 
  array (
  'enabled' => 'false',
  'interval' => '10',
  ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
  'card' => 
  array (
- 'type' => '2',
- 'show_profile_picture' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
  'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
  'show_repost_num' => 'false',
  'show_date' => 'true',
  'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
  'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
  'media_layout' => 'single',
  'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'square',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
+ 'ratio' => 'portrait',
  ),
  'carousel_album_arrow' => 
  array (
  'type' => '1',
  ),
- 'autoplay_widget_card' => 
+ 'custom_style' => 
  array (
- 'enabled' => 'false',
- 'interval' => '4',
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => '#000000',
+ 'widget-padding-top' => '20',
+ 'widget-padding-bottom' => '25',
+ 'widget-padding-left' => '25',
+ 'widget-padding-right' => '25',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => 'rgba(255, 255, 255, 0)',
+ 'widget-border-radius' => '20',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#ffffff',
+ 'header-padding-top' => '0',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#c9c9c9',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#2a2a2a',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#2a2a2a',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#f3f3f3',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '12',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#ffffff',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
  ),
  'header' => 
  array (
@@ -1249,1553 +1393,82 @@ public static $widgetTemplates = array (
  'show_username' => 'true',
  'show_follows_number' => 'false',
  'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'scroller',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 64 => 
- array (
- 'name' => 'Slider - Card 1',
- 'category' => 'slider',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
+ 'switch' => 'false',
  ),
  'layout' => 
  array (
- 'type' => 'slider',
+ 'type' => 'grid',
  'cols_num_auto' => 'true',
- 'target_col_width' => '350',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '1',
- 'infinity_loop' => 'true',
- ),
- 'custom_style' => 
- array (
- 'gap' => '10',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'true',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '55',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#4285F4',
- 'header-btn-border-radius' => '20',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#4285f4',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'false',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'false',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'square',
- 'show_post_title' => 'true',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'true',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 85 => 
- array (
- 'name' => 'Slider - Card 2',
- 'category' => 'slider',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'slider',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '350',
+ 'target_col_width' => '270',
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '2',
- 'infinity_loop' => 'true',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
- 'custom_style' => 
+ 'lightbox' => 
  array (
- 'gap' => '1',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'true',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '55',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#0095f6',
- 'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#0064D1',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'false',
- 'plaform-icon-color' => '#000000',
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
  ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 135 => 
+ array (
+ 'name' => 'Grid VII.',
+ 'category' => 'grid',
+ 'params' => 
+ array (
  'arrow' => 
  array (
- 'type' => '2',
+ 'type' => '3',
  ),
  'autoplay_widget' => 
  array (
  'enabled' => 'false',
  'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
  ),
  'card' => 
  array (
  'type' => '2',
- 'show_profile_picture' => 'false',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'false',
- 'show_media_icon' => 'false',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'portrait',
- 'show_post_title' => 'true',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '1',
  'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
  'show_full_name' => 'false',
- 'show_followers_number' => 'true',
  'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 86 => 
- array (
- 'name' => 'Slider - Card 3',
- 'category' => 'slider',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'slider',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '350',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '1',
- 'infinity_loop' => 'true',
- ),
- 'custom_style' => 
- array (
- 'gap' => '15',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'true',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '75',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#0866FF',
- 'header-btn-border-radius' => '6',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#0064D1',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'true',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
  'show_repost_num' => 'false',
  'show_date' => 'true',
  'show_media_icon' => 'false',
- 'show_post_text' => 'true',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
  'media_layout' => 'single',
  'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'square',
- 'show_post_title' => 'true',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '2',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'false',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 87 => 
- array (
- 'name' => 'Slider - Single Card 1',
- 'category' => 'slider',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'slider',
- 'cols_num_auto' => 'false',
- 'target_col_width' => '350',
- 'cols_num' => '1',
- 'loadmore' => 'true',
- 'rows_num' => '1',
- 'infinity_loop' => 'true',
- ),
- 'custom_style' => 
- array (
- 'gap' => '5',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'true',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '75',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#0095f6',
- 'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#0064D1',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'false',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '3',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'false',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'portrait',
- 'show_post_title' => 'true',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'false',
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'false',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'scroller',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 88 => 
- array (
- 'name' => 'Slider - Single Card 4',
- 'category' => 'slider',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'slider',
- 'cols_num_auto' => 'false',
- 'target_col_width' => '300',
- 'cols_num' => '1',
- 'loadmore' => 'true',
- 'rows_num' => '1',
- 'infinity_loop' => 'true',
- ),
- 'custom_style' => 
- array (
- 'gap' => '5',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'hover-only',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '75',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '4',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'true',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'true',
- 'interval' => '5',
- ),
- 'card' => 
- array (
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'false',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'left',
- 'click_action' => 'redirect',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'false',
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'false',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'false',
- 'type' => 'scroller',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => false,
- ),
- 65 => 
- array (
- 'name' => 'List - Card 1',
- 'category' => 'list',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'list',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
- ),
- 'custom_style' => 
- array (
- 'gap' => '10',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '50',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#0095f6',
- 'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '16',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#0064D1',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'false',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
  'ratio' => 'portrait',
  ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
  'carousel_album_arrow' => 
  array (
  'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'true',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 89 => 
- array (
- 'name' => 'List - Card 3',
- 'category' => 'list',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'list',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
- ),
- 'custom_style' => 
- array (
- 'gap' => '10',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '50',
- 'header-muted-color' => '#555555',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '8',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'true',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'square',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'false',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 91 => 
- array (
- 'name' => 'List - Card 4',
- 'category' => 'list',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'list',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
- ),
- 'custom_style' => 
- array (
- 'gap' => '10',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '50',
- 'header-muted-color' => '#555555',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '8',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'true',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '4',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'click_action' => 'lightbox',
- 'ratio' => 'square',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'false',
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'false',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 90 => 
- array (
- 'name' => 'List Horizontal - Card 3',
- 'category' => 'list',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'list',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
- ),
- 'custom_style' => 
- array (
- 'gap' => '10',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '50',
- 'header-muted-color' => '#555555',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '8',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#385898',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'true',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'grid',
- 'align' => 'left',
- 'click_action' => 'lightbox',
- 'ratio' => 'square',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'false',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 66 => 
- array (
- 'name' => 'Masonry - Card 1',
- 'category' => 'masonry',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'masonry',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
- ),
- 'custom_style' => 
- array (
- 'gap' => '14',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '55',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#0095f6',
- 'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '8',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#0064D1',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'false',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '3',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'ratio' => 'original',
- 'click_action' => 'lightbox',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'true',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 83 => 
- array (
- 'name' => 'Masonry - Card 2',
- 'category' => 'masonry',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'masonry',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
  ),
  'custom_style' => 
  array (
@@ -2803,9 +1476,9 @@ public static $widgetTemplates = array (
  'widget-margin-top' => '0',
  'widget-margin-bottom' => '40',
  'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
  'post_lines' => '4',
  'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
  'widget-background-color' => 'transparent',
  'widget-padding-top' => '0',
  'widget-padding-bottom' => '0',
@@ -2814,26 +1487,27 @@ public static $widgetTemplates = array (
  'widget-border-weight' => '0',
  'widget-border-color' => '#000000',
  'widget-border-radius' => '0',
- 'widget-body-height' => '',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
  'header-font-size' => '15',
  'header-font-color' => '#000000',
  'header-padding-top' => '10',
  'header-padding-bottom' => '10',
  'header-padding-left' => '0',
  'header-padding-right' => '0',
- 'header-profile-image-size' => '55',
+ 'header-profile-image-size' => '75',
+ 'header-instagram-avatar-border' => 'true',
  'header-muted-color' => '#828282',
  'header-background-color' => 'rgba(0, 0, 0, 0)',
  'header-btn-color' => '#ffffff',
  'header-btn-background-color' => '#0095f6',
  'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
  'arrow-background-color' => '#ffffff',
  'arrow-color' => '#000000',
  'dots-background-color' => '#efefef',
  'loadmore-color' => '#000000',
  'loadmore-background-color' => '#efefef',
- 'card-border-width' => '0',
+ 'card-border-width' => '1',
  'card-border-color' => '#dedede',
  'card-border-radius' => '0',
  'card-background-color' => '#ffffff',
@@ -2843,8 +1517,9 @@ public static $widgetTemplates = array (
  'card-hover-background-color' => '#000000',
  'card-text-color' => '#000000',
  'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
+ 'card-post-text-link-color' => '#0064D1',
  'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
  'card-shadow-x' => '0',
  'card-shadow-y' => '0',
  'card-shadow-blur' => '0',
@@ -2852,206 +1527,12 @@ public static $widgetTemplates = array (
  'card-profile-image-size' => '36',
  'plaform-icon-original-color' => 'false',
  'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
  ),
- 'arrow' => 
- array (
- 'type' => '2',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '2',
- 'show_profile_picture' => 'false',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'false',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'ratio' => 'original',
- 'click_action' => 'lightbox',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
- ),
- 'header' => 
- array (
- 'enabled' => 'true',
- 'type' => '1',
- 'show_profile_picture' => 'true',
- 'show_posts_number' => 'true',
- 'show_full_name' => 'false',
- 'show_followers_number' => 'true',
- 'show_username' => 'true',
- 'show_follows_number' => 'false',
- 'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'carousel',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 82 => 
- array (
- 'name' => 'Masonry - Card 3',
- 'category' => 'masonry',
- 'params' => 
- array (
  'footer' => 
  array (
  'enabled' => 'true',
- ),
- 'layout' => 
- array (
- 'type' => 'masonry',
- 'cols_num_auto' => 'true',
- 'target_col_width' => '250',
- 'cols_num' => '3',
- 'loadmore' => 'true',
- 'rows_num' => '3',
- 'infinity_loop' => 'false',
- ),
- 'custom_style' => 
- array (
- 'gap' => '14',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '55',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#0095f6',
- 'header-btn-border-radius' => '8',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '1',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '8',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#0064D1',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'true',
- 'plaform-icon-color' => '#000000',
- ),
- 'arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget' => 
- array (
- 'enabled' => 'false',
- 'interval' => '10',
- ),
- 'card' => 
- array (
- 'type' => '3',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
- 'show_repost_num' => 'false',
- 'show_date' => 'true',
- 'show_media_icon' => 'true',
- 'show_post_text' => 'true',
- 'media_layout' => 'single',
- 'align' => 'top',
- 'ratio' => 'original',
- 'click_action' => 'lightbox',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
- ),
- 'carousel_album_arrow' => 
- array (
- 'type' => '1',
- ),
- 'autoplay_widget_card' => 
- array (
- 'enabled' => 'false',
- 'interval' => '4',
  ),
  'header' => 
  array (
@@ -3064,97 +1545,46 @@ public static $widgetTemplates = array (
  'show_username' => 'true',
  'show_follows_number' => 'true',
  'show_follow_button' => 'true',
- ),
- 'lightbox' => 
- array (
- 'enabled' => 'true',
- 'type' => 'scroller',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
- 'show_like_num' => 'true',
- 'show_comments' => 'true',
- 'show_date' => 'true',
- 'show_post_text' => 'true',
- ),
- ),
- 'is-active' => true,
- ),
- 84 => 
- array (
- 'name' => 'Masonry - Mini',
- 'category' => 'masonry',
- 'params' => 
- array (
- 'footer' => 
- array (
- 'enabled' => 'true',
+ 'switch' => 'false',
  ),
  'layout' => 
  array (
- 'type' => 'masonry',
+ 'type' => 'grid',
  'cols_num_auto' => 'false',
  'target_col_width' => '250',
  'cols_num' => '3',
  'loadmore' => 'true',
  'rows_num' => '3',
+ 'width' => 'lg',
  'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
- 'custom_style' => 
+ 'lightbox' => 
  array (
- 'gap' => '1',
- 'widget-margin-top' => '0',
- 'widget-margin-bottom' => '40',
- 'arrow_show' => 'false',
- 'post_lines' => '4',
- 'post_overflow_type' => 'readmore',
- 'carousel_album_arrow_show' => 'false',
- 'widget-background-color' => 'transparent',
- 'widget-padding-top' => '0',
- 'widget-padding-bottom' => '0',
- 'widget-padding-left' => '0',
- 'widget-padding-right' => '0',
- 'widget-border-weight' => '0',
- 'widget-border-color' => '#000000',
- 'widget-border-radius' => '0',
- 'widget-body-height' => '',
- 'header-font-size' => '15',
- 'header-font-color' => '#000000',
- 'header-padding-top' => '10',
- 'header-padding-bottom' => '10',
- 'header-padding-left' => '0',
- 'header-padding-right' => '0',
- 'header-profile-image-size' => '55',
- 'header-muted-color' => '#828282',
- 'header-background-color' => 'rgba(0, 0, 0, 0)',
- 'header-btn-color' => '#ffffff',
- 'header-btn-background-color' => '#3578e5',
- 'header-btn-border-radius' => '4',
- 'header-instagram-avatar-border' => 'true',
- 'arrow-background-color' => '#ffffff',
- 'arrow-color' => '#000000',
- 'dots-background-color' => '#efefef',
- 'loadmore-color' => '#000000',
- 'loadmore-background-color' => '#efefef',
- 'card-border-width' => '0',
- 'card-border-color' => '#dedede',
- 'card-border-radius' => '0',
- 'card-background-color' => '#ffffff',
- 'card-padding' => '20',
- 'card-post-font-size' => '14',
- 'card-header-font-size' => '14',
- 'card-hover-background-color' => '#000000',
- 'card-text-color' => '#000000',
- 'card-muted-color' => '#555555',
- 'card-post-text-link-color' => '#000000',
- 'card-media-border-radius' => '0',
- 'card-shadow-x' => '0',
- 'card-shadow-y' => '0',
- 'card-shadow-blur' => '0',
- 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
- 'card-profile-image-size' => '36',
- 'plaform-icon-original-color' => 'false',
- 'plaform-icon-color' => '#000000',
+ 'enabled' => 'true',
+ 'type' => 'scroller',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
  ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 136 => 
+ array (
+ 'name' => 'Grid VIII.',
+ 'category' => 'grid',
+ 'params' => 
+ array (
  'arrow' => 
  array (
  'type' => '3',
@@ -3164,45 +1594,705 @@ public static $widgetTemplates = array (
  'enabled' => 'false',
  'interval' => '10',
  ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
  'card' => 
  array (
  'type' => '2',
  'show_profile_picture' => 'true',
- 'show_username' => 'false',
- 'show_like_num' => 'true',
- 'show_comment_num' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
  'show_repost_num' => 'false',
  'show_date' => 'true',
  'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
  'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
  'media_layout' => 'single',
  'align' => 'top',
- 'ratio' => 'original',
- 'click_action' => 'lightbox',
- ),
- 'post_overflow' => 
- array (
- 'open' => 'Read more',
- 'close' => 'Hide',
- ),
- 'actions' => 
- array (
- 'view' => 'View',
- 'share' => 'Share',
- 'follow' => 'Follow',
- ),
- 'locales' => 
- array (
- 'date-format' => 'd mmmm yyyy',
+ 'ratio' => 'square',
  ),
  'carousel_album_arrow' => 
  array (
  'type' => '1',
  ),
+ 'custom_style' => 
+ array (
+ 'gap' => '5',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '75',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '2',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'false',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'true',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'grid',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '250',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '4',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'scroller',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 64 => 
+ array (
+ 'name' => 'Slider I.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
  'autoplay_widget_card' => 
  array (
  'enabled' => 'false',
  'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'true',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '1',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 85 => 
+ array (
+ 'name' => 'Slider II.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '3',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '350',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '1',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 86 => 
+ array (
+ 'name' => 'Slider III.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'rgba(255, 255, 255, 0)',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '12',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'true',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '1',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 87 => 
+ array (
+ 'name' => 'Slider IV.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '2',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '5',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'rgba(255, 255, 255, 0)',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#000000',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#f2f2f2',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#6c6c6c',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'false',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
  ),
  'header' => 
  array (
@@ -3215,17 +2305,2316 @@ public static $widgetTemplates = array (
  'show_username' => 'true',
  'show_follows_number' => 'false',
  'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '220',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '2',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
  ),
  'lightbox' => 
  array (
  'enabled' => 'true',
  'type' => 'scroller',
- 'show_profile_picture' => 'true',
- 'show_username' => 'true',
  'show_like_num' => 'true',
  'show_comments' => 'true',
  'show_date' => 'true',
  'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 88 => 
+ array (
+ 'name' => 'Slider V.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'false',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '350',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '1',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'media',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 131 => 
+ array (
+ 'name' => 'Slider VI.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '3',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => '#000000',
+ 'widget-padding-top' => '20',
+ 'widget-padding-bottom' => '25',
+ 'widget-padding-left' => '25',
+ 'widget-padding-right' => '25',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => 'rgba(255, 255, 255, 0)',
+ 'widget-border-radius' => '20',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#ffffff',
+ 'header-padding-top' => '0',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#c9c9c9',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#2a2a2a',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#2a2a2a',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#f3f3f3',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '12',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#ffffff',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'false',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '270',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '1',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 132 => 
+ array (
+ 'name' => 'Slider VII.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '3',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'true',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '5',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '75',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'false',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '350',
+ 'cols_num' => '1',
+ 'loadmore' => 'true',
+ 'rows_num' => '1',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'scroller',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 133 => 
+ array (
+ 'name' => 'Slider VIII.',
+ 'category' => 'slider',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '4',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '5',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'true',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '75',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'true',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'false',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'slider',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '350',
+ 'cols_num' => '1',
+ 'loadmore' => 'true',
+ 'rows_num' => '1',
+ 'width' => 'lg',
+ 'infinity_loop' => 'true',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'scroller',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 65 => 
+ array (
+ 'name' => 'List I.',
+ 'category' => 'list',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'true',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'list',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 89 => 
+ array (
+ 'name' => 'List II.',
+ 'category' => 'list',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '3',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'list',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '350',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 91 => 
+ array (
+ 'name' => 'List III.',
+ 'category' => 'list',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'rgba(255, 255, 255, 0)',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '12',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'true',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'list',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 90 => 
+ array (
+ 'name' => 'List IV.',
+ 'category' => 'list',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'false',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'list',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '350',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'media',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 66 => 
+ array (
+ 'name' => 'Masonry I.',
+ 'category' => 'masonry',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '1',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'true',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'original',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'masonry',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 83 => 
+ array (
+ 'name' => 'Masonry II.',
+ 'category' => 'masonry',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '3',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'original',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'masonry',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '350',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 82 => 
+ array (
+ 'name' => 'Masonry III.',
+ 'category' => 'masonry',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'true',
+ 'show_username' => 'false',
+ 'show_like_num' => 'true',
+ 'show_comment_num' => 'true',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'true',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'true',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'original',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'rgba(255, 255, 255, 0)',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '20',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '12',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '12',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'true',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'masonry',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '280',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'carousel',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 84 => 
+ array (
+ 'name' => 'Masonry IV.',
+ 'category' => 'masonry',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '3',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'portrait',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '1',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '75',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '2',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'false',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'true',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'masonry',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '250',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'scroller',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 137 => 
+ array (
+ 'name' => 'Masonry V.',
+ 'category' => 'masonry',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'false',
+ 'show_full_name' => 'false',
+ 'show_username' => 'false',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'false',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'original',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '10',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '55',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'false',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '3',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'true',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'false',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'masonry',
+ 'cols_num_auto' => 'true',
+ 'target_col_width' => '350',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'media',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 138 => 
+ array (
+ 'name' => 'Masonry VI.',
+ 'category' => 'masonry',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '3',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'original',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '1',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '75',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => '2',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'false',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'true',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'masonry',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '250',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '3',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'scroller',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
+ ),
+ ),
+ 'is-active' => true,
+ ),
+ 139 => 
+ array (
+ 'name' => 'Masonry VII.',
+ 'category' => 'masonry',
+ 'params' => 
+ array (
+ 'arrow' => 
+ array (
+ 'type' => '3',
+ ),
+ 'autoplay_widget' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '10',
+ ),
+ 'autoplay_widget_card' => 
+ array (
+ 'enabled' => 'false',
+ 'interval' => '4',
+ ),
+ 'card' => 
+ array (
+ 'type' => '2',
+ 'show_profile_picture' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_like_num' => 'false',
+ 'show_comment_num' => 'false',
+ 'show_repost_num' => 'false',
+ 'show_date' => 'true',
+ 'show_media_icon' => 'false',
+ 'show_post_title' => 'false',
+ 'show_post_text' => 'false',
+ 'show_post_media' => 'true',
+ 'click_action' => 'lightbox',
+ 'media_layout' => 'single',
+ 'align' => 'top',
+ 'ratio' => 'square',
+ ),
+ 'carousel_album_arrow' => 
+ array (
+ 'type' => '1',
+ ),
+ 'custom_style' => 
+ array (
+ 'gap' => '5',
+ 'widget-margin-top' => '0',
+ 'widget-margin-bottom' => '40',
+ 'arrow_show' => 'false',
+ 'carousel_album_arrow_show' => 'false',
+ 'post_lines' => '4',
+ 'post_overflow_type' => 'readmore',
+ 'widget-background-color' => 'transparent',
+ 'widget-padding-top' => '0',
+ 'widget-padding-bottom' => '0',
+ 'widget-padding-left' => '0',
+ 'widget-padding-right' => '0',
+ 'widget-border-weight' => '0',
+ 'widget-border-color' => '#000000',
+ 'widget-border-radius' => '0',
+ 'widget-font-family' => 'Poppins',
+ 'widget-body-height' => NULL,
+ 'header-font-size' => '15',
+ 'header-font-color' => '#000000',
+ 'header-padding-top' => '10',
+ 'header-padding-bottom' => '10',
+ 'header-padding-left' => '0',
+ 'header-padding-right' => '0',
+ 'header-profile-image-size' => '75',
+ 'header-instagram-avatar-border' => 'true',
+ 'header-muted-color' => '#828282',
+ 'header-background-color' => 'rgba(0, 0, 0, 0)',
+ 'header-btn-color' => '#ffffff',
+ 'header-btn-background-color' => '#0095f6',
+ 'header-btn-border-radius' => '8',
+ 'arrow-background-color' => '#ffffff',
+ 'arrow-color' => '#000000',
+ 'dots-background-color' => '#efefef',
+ 'loadmore-color' => '#000000',
+ 'loadmore-background-color' => '#efefef',
+ 'card-border-width' => '1',
+ 'card-border-color' => '#dedede',
+ 'card-border-radius' => '0',
+ 'card-background-color' => '#ffffff',
+ 'card-padding' => '20',
+ 'card-post-font-size' => '14',
+ 'card-header-font-size' => '14',
+ 'card-hover-background-color' => '#000000',
+ 'card-text-color' => '#000000',
+ 'card-muted-color' => '#555555',
+ 'card-post-text-link-color' => '#0064D1',
+ 'card-media-border-radius' => '0',
+ 'card-hover-accent-bar' => 'true',
+ 'card-shadow-x' => '0',
+ 'card-shadow-y' => '0',
+ 'card-shadow-blur' => '0',
+ 'card-shadow-color' => 'rgba(0, 0, 0, 0.1)',
+ 'card-profile-image-size' => '36',
+ 'plaform-icon-original-color' => 'false',
+ 'plaform-icon-color' => '#000000',
+ 'page-background-color' => '#fafafa',
+ 'page-text-color' => '#000000',
+ ),
+ 'footer' => 
+ array (
+ 'enabled' => 'true',
+ ),
+ 'header' => 
+ array (
+ 'enabled' => 'false',
+ 'type' => '2',
+ 'show_profile_picture' => 'true',
+ 'show_posts_number' => 'true',
+ 'show_full_name' => 'false',
+ 'show_followers_number' => 'true',
+ 'show_username' => 'true',
+ 'show_follows_number' => 'true',
+ 'show_follow_button' => 'true',
+ 'switch' => 'false',
+ ),
+ 'layout' => 
+ array (
+ 'type' => 'masonry',
+ 'cols_num_auto' => 'false',
+ 'target_col_width' => '250',
+ 'cols_num' => '3',
+ 'loadmore' => 'true',
+ 'rows_num' => '4',
+ 'width' => 'lg',
+ 'infinity_loop' => 'false',
+ 'lazy_load' => 'true',
+ 'delay_load' => 'false',
+ ),
+ 'lightbox' => 
+ array (
+ 'enabled' => 'true',
+ 'type' => 'scroller',
+ 'show_like_num' => 'true',
+ 'show_comments' => 'true',
+ 'show_date' => 'true',
+ 'show_post_text' => 'true',
+ 'show_full_name' => 'false',
+ 'show_username' => 'true',
+ 'show_profile_picture' => 'true',
+ ),
+ 'locales' => 
+ array (
+ 'date-format' => 'd mmmm yyyy',
  ),
  ),
  'is-active' => true,
@@ -3347,10 +4736,12 @@ public static $widgetParamOverrides = array (
  ),
 );
 public static $widgetHalfWidthLayouts = array (
- 0 => 84,
- 1 => 87,
- 2 => 88,
- 3 => 92,
+ 0 => 132,
+ 1 => 133,
+ 2 => 135,
+ 3 => 136,
+ 4 => 138,
+ 5 => 139,
 );
 public function getWidget($templateId = null)
 {
@@ -3534,6 +4925,7 @@ add_filter('filesystem_method', array($this, 'filterFilesystemMethod'));
 if ($fileExists && $css === $this->getCssFileContent()) {
 return;
 }
+// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
 set_error_handler(function ($errSeverity, $errMsg, $errFile, $errLine, $errContext = []) {
 throw new ErrorException(wp_kses_post($errMsg), 0, esc_html($errSeverity), esc_html($errFile), esc_html($errLine));
 }, E_WARNING);
@@ -3840,8 +5232,7 @@ array_filter(array(
 )),
 admin_url('admin.php')
 ),
-'ti-' . $type . '_' . $action,
-'notification_action_nonce'
+'ti-notification'
 );
 }
 public function setNotificationParam($type, $param, $value)
@@ -3929,7 +5320,7 @@ Your Instagram account (@%username%) has been successfully connected and the pos
 </tr>
 <tr>
 <td align="center" bgcolor="#242F62" style="padding: 15px 10px 15px 10px; color: #ffffff; font-family: Arial, sans-serif; font-size: 12px; line-height: 18px;">
-2018-2025 &copy; <b>Trustindex.io</b><br/>
+2018-2026 &copy; <b>Trustindex.io</b><br/>
 <a target="_blank" href="https://www.trustindex.io" style="color:#ffffff;">https://www.trustindex.io</a>
 </td>
 </tr>
@@ -3986,7 +5377,7 @@ Your Instagram account (@%username%) has been refreshed and new posts are now av
 </tr>
 <tr>
 <td align="center" bgcolor="#242F62" style="padding: 15px 10px 15px 10px; color: #ffffff; font-family: Arial, sans-serif; font-size: 12px; line-height: 18px;">
-2018-2025 &copy; <b>Trustindex.io</b><br/>
+2018-2026 &copy; <b>Trustindex.io</b><br/>
 <a target="_blank" href="https://www.trustindex.io" style="color:#ffffff;">https://www.trustindex.io</a>
 </td>
 </tr>
@@ -4110,6 +5501,20 @@ public function updateVersion($name, $value)
 $data = get_option($this->getOptionName('version-control'), []);
 $data[ $name ] = $value;
 return update_option($this->getOptionName('version-control'), $data, false);
+}
+public function getAuthError(WP_REST_Request $request)
+{
+$signature = $request->get_header('X-Signature');
+$timestamp = (int) $request->get_header('X-Timestamp');
+if (1800 < (time() - $timestamp)) {
+return new WP_Error('expired', 'Request expired', ['status' => 401]);
+}
+$body = $request->get_body();
+$expected = hash_hmac('sha256', $body.$timestamp, get_option($this->getOptionName('public-id'), $request->get_param('data')['public_id']));
+if (!hash_equals($expected, $signature)) {
+return new WP_Error('invalid_signature', 'Signature mismatch', ['status' => 403]);
+}
+return null;
 }
 }
 ?>

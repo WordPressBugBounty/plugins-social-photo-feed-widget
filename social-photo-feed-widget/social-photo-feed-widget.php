@@ -5,7 +5,7 @@ Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 Tags: instagram, instagram feed, instagram gallery, instagram photos, instagram widget
-Version: 1.7.5
+Version: 1.7.8
 Requires at least: 6.2
 Requires PHP: 7.0
 Author: Trustindex.io <support@trustindex.io>
@@ -27,7 +27,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.7.5", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.7.8", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);
@@ -86,26 +86,38 @@ return rest_ensure_response([
 ]);
 register_rest_route($pluginManagerInstance->getWebhookAction(), '/troubleshooting', [
 'methods' => 'GET',
-'callback' => function () use ($pluginManagerInstance) {
-header('Content-Type: text/plain; charset=UTF-8');
-global $wpdb;
+'callback' => function (WP_REST_Request $request) use ($pluginManagerInstance) {
+$authError = $pluginManagerInstance->getAuthError($request);
+if (null !== $authError) {
+return $authError;
+}
+header('Content-Type: text/html; charset=UTF-8');
+global $wpdb, $wp_version;
+echo '<pre>';
 include $pluginManagerInstance->getPluginDir() . 'include' . DIRECTORY_SEPARATOR . 'troubleshooting.php';
+echo '</pre>';
 exit;
 },
 'permission_callback' => '__return_true',
 ]);
+
 register_rest_route($pluginManagerInstance->getWebhookAction(), '/submit-data', [
 'methods' => 'POST',
 'callback' => function (WP_REST_Request $request) use ($pluginManagerInstance) {
-$nonce = $request->get_param('nonce');
-if (!wp_verify_nonce($nonce, 'admin_action_nonce')) {
-return new WP_REST_Response(['error' => 'Invalid nonce'], 403);
+$authError = $pluginManagerInstance->getAuthError($request);
+if (null !== $authError) {
+return $authError;
 }
 $oldSource = $pluginManagerInstance->getConnectedSource();
 /*
 This function ensures that each element of the JSON object is sanitized individually using standard WordPress sanitization functions
 */
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($request->get_param('data')), false);
+if (empty($source['feed_data']['style']['type'])) {
+$oldFeedData = $pluginManagerInstance->getFeedData();
+$source['feed_data']['style'] = array_merge($source['feed_data']['style'], $oldFeedData['style'] ?? []);
+}
 $source = $pluginManagerInstance->saveConnectedSource($source);
 if (empty($source['error']) && !$pluginManagerInstance->isDownloadInProgress()) {
 $lastDownloadChecked = get_option($pluginManagerInstance->getOptionName('feed-data-download-checked'), 0);
@@ -122,6 +134,19 @@ $pluginManagerInstance->setNotificationParam($notificationType, 'do-check', fals
 }
 return new WP_REST_Response([
 'token' => get_option($pluginManagerInstance->getOptionName('public-id')),
+]);
+},
+'permission_callback' => '__return_true',
+]);
+register_rest_route($pluginManagerInstance->getWebhookAction(), '/refresh-data', [
+'methods' => 'GET',
+'callback' => function (WP_REST_Request $request) use ($pluginManagerInstance) {
+$authError = $pluginManagerInstance->getAuthError($request);
+if (null !== $authError) {
+return $authError;
+}
+return rest_ensure_response([
+'data' => $pluginManagerInstance->getFeedData(true),
 ]);
 },
 'permission_callback' => '__return_true',
