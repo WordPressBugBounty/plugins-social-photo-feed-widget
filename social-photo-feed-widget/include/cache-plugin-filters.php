@@ -42,14 +42,14 @@ foreach (array (
 $list []= 'ti-widget-css-'. $platform;
 }
 foreach (array (
- 0 => 'instagram',
- 1 => 'facebook',
- 2 => 'youtube',
- 3 => 'google',
- 4 => 'twitter',
- 5 => 'tiktok',
- 6 => 'pinterest',
- 7 => 'vimeo',
+ 0 => 'facebook',
+ 1 => 'google',
+ 2 => 'instagram',
+ 3 => 'pinterest',
+ 4 => 'tiktok',
+ 5 => 'twitter',
+ 6 => 'vimeo',
+ 7 => 'youtube',
 ) as $platform) {
 $list []= 'trustindex-feed-widget-css-'. $platform;
 }

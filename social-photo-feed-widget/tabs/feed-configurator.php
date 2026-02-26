@@ -262,7 +262,7 @@ __('This is only a temporary issue – no need to switch plugins, everything wil
 </div>
 <?php endforeach; ?>
 </div>
-<?php elseif ($stepCurrent === 3): $widgetDataIds = []; ?>
+<?php elseif ($stepCurrent === 3): ?>
 <div class="ti-preview-boxes-container">
 <?php foreach ($pluginManager::$widgetTemplates as $id => $template): ?>
 <?php
@@ -286,7 +286,6 @@ if ($template['is-active'] && $template['category'] === $layout):
 <div class="preview">
 <div id="<?php
 $widgetId = $pluginManagerInstance->getWidget($id);
-$widgetDataIds[] = $pluginManagerInstance->getWidgetDataKey($widgetId);
 echo esc_attr($pluginManagerInstance->getContainerKey($widgetId));
 ?>"></div>
 </div>
@@ -295,9 +294,6 @@ echo esc_attr($pluginManagerInstance->getContainerKey($widgetId));
 </div>
 <?php endif; ?>
 <?php endforeach; ?>
-<?php
-$pluginManagerInstance->registerLoaderScript($widgetDataIds);
-?>
 </div>
 <?php elseif ($stepCurrent === 4): ?>
 <form method="post" id="ti-widget-editor-form">

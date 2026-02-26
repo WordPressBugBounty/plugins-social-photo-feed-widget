@@ -26,7 +26,7 @@ $pluginManagerInstance->checkFeedDownload();
 header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=' . sanitize_text_field(wp_unslash($_GET['tab'])));
 }
 }
-$pluginManagerInstance->registerLoaderScript();
+wp_enqueue_script($pluginManagerInstance->getLoaderScriptKey(), 'https://cdn.trustindex.io/loader-feed.js', [], $pluginManagerInstance->getVersion(), ['in_footer' => true]);
 $posts = $feedData['posts'];
 $pluginManagerInstance->setNotificationParam('post-download-finished', 'active', false);
 $pluginManagerInstance->setNotificationParam('post-download-finished', 'do-check', true);

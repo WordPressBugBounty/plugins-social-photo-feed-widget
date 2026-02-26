@@ -257,19 +257,7 @@ return true;
 }
 public function getFeedData(bool $forceRefresh = false)
 {
-$data = [];
-if ($jsonStr = get_option($this->getOptionName('feed-data'), "")) {
-$data = json_decode($jsonStr, true);
-$data['style'] = array_merge($data['style'], [
-'settings' => [
-'platform_style' => ucfirst($this->getShortName()),
-'hidden_posts' => $data['style']['settings']['hidden_posts'] ?? [],
-],
-]);
-if (!isset($data['style']['type'])) {
-$data['style']['type'] = 'custom-style';
-}
-}
+$data = $this->getFeedDataLocal();
 $dataSaved = time() - (int)get_option($this->getOptionName('feed-data-saved'), 0);
 $allImageReplaced = true;
 if ($data && $dataSaved > 600) {
@@ -283,20 +271,8 @@ break 2;
 }
 }
 if (!$data || $dataSaved > (12 * 3600) || !$allImageReplaced || $forceRefresh) {
-$publicId = get_option($this->getOptionName('public-id'));
-if (!$publicId) {
-return $data;
-}
-$response = wp_remote_get('https://cdn.trustindex.io/wp-feeds/'. substr($publicId, 0, 2) .'/'. $publicId .'/data.json', [
-'timeout' => 30,
-'sslverify' => false
-]);
-if (is_wp_error($response)) {
-echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($response)));
-die;
-}
 try {
-$newData = json_decode(wp_remote_retrieve_body($response), true, 512, JSON_THROW_ON_ERROR);
+$newData = $this->getFeedDataFromCdn();
 } catch (Exception $e) {
 echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($e->getMessage())));;
 die;
@@ -352,6 +328,45 @@ $this->getOptionName('connect-pending'),
 false
 );
 }
+public function getFeedDataLocal()
+{
+$data = [];
+if ($jsonStr = get_option($this->getOptionName('feed-data'), "")) {
+$data = json_decode($jsonStr, true);
+$data['style'] = array_merge($data['style'], [
+'settings' => [
+'platform_style' => ucfirst($this->getShortName()),
+'hidden_posts' => $data['style']['settings']['hidden_posts'] ?? [],
+],
+]);
+if (!isset($data['style']['type'])) {
+$data['style']['type'] = 'custom-style';
+}
+}
+return $data;
+}
+public function getFeedDataFromCdn()
+{
+$publicId = get_option($this->getOptionName('public-id'));
+if (!$publicId) {
+return [];
+}
+$response = wp_remote_get('https://cdn.trustindex.io/wp-feeds/'. substr($publicId, 0, 2) .'/'. $publicId .'/data.json', [
+'timeout' => 30,
+'sslverify' => false
+]);
+if (is_wp_error($response)) {
+throw new Exception(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($response));
+}
+return json_decode(wp_remote_retrieve_body($response), true, 512, JSON_THROW_ON_ERROR);
+}
+public function getFeedDataFieldsToUpdate()
+ {
+return [
+'posts', 'sources', 'source_types', 'sprite',
+'token_expires', 'last_generated_at', 'version-control',
+];
+}
 public function saveFeedData($arr = [], $saveTime = true)
 {
 $updated = update_option($this->getOptionName('feed-data'), wp_json_encode($arr), false);
@@ -362,14 +377,17 @@ update_option($this->getOptionName('feed-data-saved'), time(), false);
 public function updateFeedData($newData = [], $data = null)
 {
 if (!$data) {
-$data = $this->getFeedData();
+$data = $this->getFeedDataLocal();
 }
 if (!$newData) {
 return $data;
 }
+if ([] !== $newData['version-control']) {
+update_option($this->getOptionName('cdn-version-control'), $newData['version-control'], false);
+}
 if ($data) {
 foreach ($data as $key => $value) {
-if (!in_array($key, [ 'posts', 'sources', 'source_types', 'sprite', 'token_expires' ])) {
+if (!in_array($key, $this->getFeedDataFieldsToUpdate())) {
 $newData[ $key ] = $value;
 }
 }
@@ -4685,6 +4703,9 @@ public static $widgetParams = array (
  'show_full_name' => 'false',
  'show_username' => 'true',
  'show_profile_picture' => 'true',
+ 'autoplay_video' => 'true',
+ 'show_video_controls' => 'true',
+ 'muted_video' => 'false',
  ),
  'autoplay_widget' => 
  array (
@@ -4807,9 +4828,18 @@ return $this->registerWidget($id, $feedData, $isPreview);
 }
 private function registerWidget($id, $feedData = null, $isPreview = true)
 {
-$dataId = $this->getWidgetDataKey($id);
 $isWpWidget = isset($feedData);
-$enqueueData = function () use ($id, $feedData, $dataId, $isWpWidget) {
+$enqueue = function () use ($id, $feedData, $isWpWidget) {
+$handle = $this->getLoaderScriptKey();
+if (!wp_script_is($handle, 'enqueued')) {
+wp_enqueue_script(
+$handle,
+'https://cdn.trustindex.io/loader-feed.js',
+[],
+$this->getVersion(),
+['in_footer' => true]
+);
+}
 $data = [
 'container' => esc_attr($this->getContainerKey($id)),
 ];
@@ -4820,31 +4850,19 @@ $data['cssUrl'] = $this->getCssUrl().(is_file($this->getCssFile()) ? '?'.filemti
 }
 $data['pluginVersion'] = $this->getVersion();
 }
-$data = 'script_content_start'.base64_encode(wp_json_encode($data, JSON_UNESCAPED_SLASHES)).'script_content_end';
-wp_enqueue_script($dataId, 'https://cdn.trustindex.io/loader-feed.js', [], $id.($isWpWidget ? '|wordpress' : '').$data, ['in_footer' => false]);
+$json = wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+$inline = 'window.tiFeedWidgetData = window.tiFeedWidgetData || {};window.tiFeedWidgetData["'.$id.'"] = '.$json.';';
+wp_add_inline_script($handle, $inline, 'before');
 };
-if (!$isPreview || !$isWpWidget) {
-$this->registerLoaderScript([$dataId]);
-}
-add_action('wp_footer', $enqueueData);
-add_action('admin_footer', $enqueueData);
+add_action('wp_footer', $enqueue);
+add_action('admin_footer', $enqueue);
 return $id;
-}
-public function registerLoaderScript($deps = []) {
-$enqueueLoader = function () use ($deps) {
-wp_enqueue_script($this->getLoaderScriptKey(), 'https://cdn.trustindex.io/loader-feed.js', $deps, $this->getVersion(), ['in_footer' => true]);
-};
-add_action('wp_footer', $enqueueLoader);
-add_action('admin_footer', $enqueueLoader);
 }
 public function getContainerKey($widgetId) {
 return 'trustindex-feed-container-'.$this->getShortName().'-'.$widgetId;
 }
 public function getCssKey($widgetId = null) {
 return 'trustindex-feed-widget-css-'.$this->getShortName().($widgetId ? '-'.$widgetId : '');
-}
-public function getWidgetDataKey($widgetId) {
-return 'trustindex-feed-data-'.$this->getShortName().'-'.$widgetId;
 }
 public function getLoaderScriptKey() {
 return 'trustindex-feed-loader-js';
@@ -5469,19 +5487,7 @@ return [
 
 public function getCdnVersionControl()
 {
-$data = get_option($this->getOptionName('cdn-version-control'), []);
-if (!$data || $data['last-saved-at'] < time() + 60) {
-$response = wp_remote_get('https://cdn.trustindex.io/version-control.json', [
-'timeout' => 60,
-'sslverify' => false,
-]);
-if (!is_wp_error($response)) {
-$data = array_merge($data, json_decode($response['body'], true));
-}
-$data['last-saved-at'] = time();
-update_option($this->getOptionName('cdn-version-control'), $data, false);
-}
-return $data;
+return get_option($this->getOptionName('cdn-version-control'), []);
 }
 public function getCdnVersion($name = "")
 {
