@@ -45,7 +45,6 @@ $pluginManagerInstance->deleteConnectedSource();
 delete_option($pluginManagerInstance->getOptionName('source'));
 delete_option($pluginManagerInstance->getOptionName('feed-data'));
 delete_option($pluginManagerInstance->getOptionName('feed-data-saved'));
-delete_option($pluginManagerInstance->getOptionName('public-id'));
 delete_option($pluginManagerInstance->getOptionName('token-expires'));
 delete_option($pluginManagerInstance->getOptionName('layout'));
 delete_option($pluginManagerInstance->getOptionName('template'));
@@ -222,16 +221,12 @@ echo esc_html(sprintf(__('This will ensure that your %s Feed Widget continues to
 <input type="hidden" name="data" required="required" value="" />
 </form>
 <?php $connectUrl = 'https://admin.trustindex.io/source/edit_feed/type/Instagram/iframe/1'; ?>
-<?php
-if ($isReconnectingSource) {
-$connectUrl .= '/public_id/'.get_option($pluginManagerInstance->getOptionName('public-id'));
-}
-?>
 
 <?php
 $connectUrlParams = array_merge(
 isset($connectPending['error']) ? [] : $connectPending,
 array(
+'public_id' => get_option($pluginManagerInstance->getOptionName('public-id')),
 'website' => esc_attr(urlencode(get_option('siteurl'))),
 'version' => esc_attr($pluginManagerInstance->getVersion()),
 ),

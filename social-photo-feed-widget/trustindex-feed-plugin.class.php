@@ -122,6 +122,25 @@ return $json['version'];
 
 public function activate()
 {
+$requestBody = [
+'platform' => 'Instagram',
+'website' => get_option('siteurl'),
+];
+$response = wp_remote_post('https://admin.trustindex.io/new/wordpress-feed/register', [
+'headers' => [
+'Content-Type' => 'application/x-www-form-urlencoded',
+'ti-secure' => hash_hmac('sha256', http_build_query($requestBody), '80ce0e06b31b34794f5088d4875480f1'),
+],
+'body' => $requestBody,
+'timeout' => '30',
+'sslverify' => false,
+]);
+if (is_wp_error($response)) {
+update_option($this->getOptionName('public-id'), $response->get_error_message(), false);
+return;
+}
+$data = json_decode(wp_remote_retrieve_body($response), true);
+update_option($this->getOptionName('public-id'), $data['public-id'] ?? $data['error'], false);
 include $this->getPluginDir() . 'include' . DIRECTORY_SEPARATOR . 'activate.php';
 if (!$this->getNotificationParam('rate-us', 'hidden', false) && $this->getNotificationParam('rate-us', 'active', true)) {
 $this->setNotificationParam('rate-us', 'active', true);
@@ -5516,7 +5535,7 @@ if (1800 < (time() - $timestamp)) {
 return new WP_Error('expired', 'Request expired', ['status' => 401]);
 }
 $body = $request->get_body();
-$expected = hash_hmac('sha256', $body.$timestamp, get_option($this->getOptionName('public-id'), $request->get_param('data')['public_id']));
+$expected = hash_hmac('sha256', $body.$timestamp, get_option($this->getOptionName('public-id')));
 if (!hash_equals($expected, $signature)) {
 return new WP_Error('invalid_signature', 'Signature mismatch', ['status' => 403]);
 }
