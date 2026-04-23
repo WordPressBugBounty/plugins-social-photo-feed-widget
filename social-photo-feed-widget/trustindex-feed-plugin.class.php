@@ -322,11 +322,12 @@ $params = [
 'subtypes' => $source['subtype'],
 'username' => $source['name'],
 'website' => get_option('siteurl'),
+'public_id' => get_option($this->getOptionName('public-id')),
 ];
 if ($webhook = $this->getWebhookUrl()) {
 $params['webhook'] = $webhook;
 }
-$response = wp_remote_get('https://admin.trustindex.io/source/check_feed_download_status', [
+$response = wp_remote_get('https://admin.trustindex.io/new/insta-feed-scraper/download-status', [
 'body' => $params,
 'timeout' => '30',
 'sslverify' => false,
@@ -5534,8 +5535,12 @@ $timestamp = (int) $request->get_header('X-Timestamp');
 if (1800 < (time() - $timestamp)) {
 return new WP_Error('expired', 'Request expired', ['status' => 401]);
 }
+$publicId = get_option($this->getOptionName('public-id'));
+if (!$publicId) {
+return new WP_Error('missing_public_id', 'Public ID is missing', ['status' => 400]);
+}
 $body = $request->get_body();
-$expected = hash_hmac('sha256', $body.$timestamp, get_option($this->getOptionName('public-id')));
+$expected = hash_hmac('sha256', $body.$timestamp, $publicId);
 if (!hash_equals($expected, $signature)) {
 return new WP_Error('invalid_signature', 'Signature mismatch', ['status' => 403]);
 }
