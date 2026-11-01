@@ -376,9 +376,13 @@ $response = wp_remote_get('https://cdn.trustindex.io/wp-feeds/'. substr($publicI
 'sslverify' => false
 ]);
 if (is_wp_error($response)) {
-throw new Exception(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($response));
+throw new Exception(wp_kses_post(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($response)));
 }
-return json_decode(wp_remote_retrieve_body($response), true, 512, JSON_THROW_ON_ERROR);
+$data = json_decode(wp_remote_retrieve_body($response), true);
+if (JSON_ERROR_NONE !== json_last_error()) {
+throw new Exception(json_last_error_msg());
+}
+return $data;
 }
 public function getFeedDataFieldsToUpdate()
  {
@@ -4772,7 +4776,7 @@ public static $widgetParamOverrides = array (
  ),
  'custom_style' => 
  array (
- 'header-btn-background-color' => '#0095f6',
+ 'header-btn-background-color' => '#4a5df9',
  'header-btn-border-radius' => '8',
  ),
 );
@@ -4871,7 +4875,7 @@ $data['cssUrl'] = $this->getCssUrl().(is_file($this->getCssFile()) ? '?'.filemti
 $data['pluginVersion'] = $this->getVersion();
 }
 $json = wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-$inline = 'window.tiFeedWidgetData = window.tiFeedWidgetData || {};window.tiFeedWidgetData["'.$id.'"] = '.$json.';';
+$inline = 'window.tiFeedWidgetData = window.tiFeedWidgetData || {};window.tiFeedWidgetData["'.$id.'"] = '.$json.';window.TrustindexFeed && TrustindexFeed.init();';
 wp_add_inline_script($handle, $inline, 'before');
 };
 add_action('wp_footer', $enqueue);

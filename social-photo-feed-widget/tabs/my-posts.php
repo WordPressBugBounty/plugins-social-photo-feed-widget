@@ -72,7 +72,7 @@ echo esc_html(sprintf(__('The manual post download will be available again in %d
 <?php else: ?>
 <p><?php echo esc_html(__('Get unlimited posts, multiple feed widgets with custom style settings, widget popups, and access to 9 social platforms – everything you need to showcase your content like a pro!', 'social-photo-feed-widget')); ?></p>
 <?php endif; ?>
-<a class="ti-btn" href="https://www.trustindex.io?a=sys&c=wp-instagram-feed-pro" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
+<a class="ti-btn" href="https://www.trustindex.io?url=/feed-widgets&a=sys&c=wp-instagram-feed-pro" target="_blank"><?php echo esc_html(__('Create a Free Account for More Features', 'social-photo-feed-widget')); ?></a>
 </div>
 <?php if (!count($posts)): ?>
 <div class="ti-notice ti-notice-warning">

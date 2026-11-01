@@ -168,6 +168,17 @@ include(plugin_dir_path(__FILE__) . '../include/step-list.php');
 <?php
 $source = $pluginManagerInstance->getConnectedSource();
 if ($source && !$isReconnectingSource): ?>
+<div class="ti-upgrade-notice">
+<strong><?php
+/* translators: %s: Platform name */
+echo esc_html(sprintf(__('Connect multiple %s accounts', 'social-photo-feed-widget'), 'Instagram'));
+?></strong>
+<p><?php
+/* translators: %1$s: Platform name */
+echo esc_html(sprintf(__('Need more than one %1$s account in your widget? Upgrade to a paid plan to connect and display content from multiple %1$s accounts.', 'social-photo-feed-widget'), 'Instagram'));
+?></p>
+<a class="ti-btn" href="https://www.trustindex.io?url=/feed-widgets&a=sys&c=wp-feed-instagram-6" target="_blank"><?php echo esc_html(__('Upgrade now', 'social-photo-feed-widget')); ?></a>
+</div>
 <div class="ti-source-box">
 <?php
 $feedData = $pluginManagerInstance->getFeedData();
