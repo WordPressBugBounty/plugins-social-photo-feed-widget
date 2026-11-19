@@ -24,6 +24,10 @@ public function getWebhookAction()
 {
 return 'trustindex_feed_hook_' . $this->getShortName();
 }
+public function isValidPublicId($publicId)
+{
+return is_string($publicId) && 1 === preg_match('/^[0-9a-f]{13}$/', $publicId);
+}
 public function getWebhookUrl()
 {
 $webhookUrl = rest_url($this->getWebhookAction());
@@ -122,6 +126,23 @@ return $json['version'];
 
 public function activate()
 {
+$this->registerIfPublicIdMissing();
+include $this->getPluginDir() . 'include' . DIRECTORY_SEPARATOR . 'activate.php';
+if (!$this->getNotificationParam('rate-us', 'hidden', false) && $this->getNotificationParam('rate-us', 'active', true)) {
+$this->setNotificationParam('rate-us', 'active', true);
+$this->setNotificationParam('rate-us', 'timestamp', time() + 86400);
+}
+update_option($this->getOptionName('activation-redirect'), 1, false);
+}
+public function registerIfPublicIdMissing()
+{
+if ($this->isValidPublicId(get_option($this->getOptionName('public-id')))) {
+return;
+}
+update_option($this->getOptionName('public-id'), $this->requestNewPublicId() ?? '', false);
+}
+private function requestNewPublicId()
+{
 $requestBody = [
 'platform' => 'Instagram',
 'website' => get_option('siteurl'),
@@ -136,17 +157,10 @@ $response = wp_remote_post('https://admin.trustindex.io/new/wordpress-feed/regis
 'sslverify' => false,
 ]);
 if (is_wp_error($response)) {
-update_option($this->getOptionName('public-id'), $response->get_error_message(), false);
-return;
+return null;
 }
-$data = json_decode(wp_remote_retrieve_body($response), true);
-update_option($this->getOptionName('public-id'), $data['public-id'] ?? $data['error'], false);
-include $this->getPluginDir() . 'include' . DIRECTORY_SEPARATOR . 'activate.php';
-if (!$this->getNotificationParam('rate-us', 'hidden', false) && $this->getNotificationParam('rate-us', 'active', true)) {
-$this->setNotificationParam('rate-us', 'active', true);
-$this->setNotificationParam('rate-us', 'timestamp', time() + 86400);
-}
-update_option($this->getOptionName('activation-redirect'), 1, false);
+$publicId = json_decode(wp_remote_retrieve_body($response), true)['public-id'] ?? null;
+return $this->isValidPublicId($publicId) ? $publicId : null;
 }
 public function load()
 {
@@ -199,6 +213,9 @@ $this->deleteConnectedSource();
 include $this->getPluginDir() . 'include' . DIRECTORY_SEPARATOR . 'uninstall.php';
 if (is_file($this->getCssFile())) {
 wp_delete_file($this->getCssFile());
+}
+if (is_file($this->getSpriteFile())) {
+wp_delete_file($this->getSpriteFile());
 }
 }
 public function outputBuffer()
@@ -293,8 +310,8 @@ if (!$data || $dataSaved > (12 * 3600) || !$allImageReplaced || $forceRefresh) {
 try {
 $newData = $this->getFeedDataFromCdn();
 } catch (Exception $e) {
-echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($e->getMessage())));;
-die;
+echo wp_kses_post($this->errorBoxForAdmins(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($e->getMessage())));
+return $data;
 }
 $data = $this->updateFeedData($newData, $data);
 if ($tokenExpires = strtotime($data['token_expires'] ?? '')) {
@@ -322,8 +339,11 @@ $params = [
 'subtypes' => $source['subtype'],
 'username' => $source['name'],
 'website' => get_option('siteurl'),
-'public_id' => get_option($this->getOptionName('public-id')),
 ];
+$publicId = get_option($this->getOptionName('public-id'));
+if ($this->isValidPublicId($publicId)) {
+$params['public_id'] = $publicId;
+}
 if ($webhook = $this->getWebhookUrl()) {
 $params['webhook'] = $webhook;
 }
@@ -368,7 +388,7 @@ return $data;
 public function getFeedDataFromCdn()
 {
 $publicId = get_option($this->getOptionName('public-id'));
-if (!$publicId) {
+if (!$this->isValidPublicId($publicId)) {
 return [];
 }
 $response = wp_remote_get('https://cdn.trustindex.io/wp-feeds/'. substr($publicId, 0, 2) .'/'. $publicId .'/data.json', [
@@ -377,6 +397,9 @@ $response = wp_remote_get('https://cdn.trustindex.io/wp-feeds/'. substr($publicI
 ]);
 if (is_wp_error($response)) {
 throw new Exception(wp_kses_post(__('Could not download the posts for the widget.<br />Please reload the page.<br />If the problem persists, please write an email to support@trustindex.io.', 'social-photo-feed-widget') .'<br /><br />'. wp_json_encode($response)));
+}
+if (200 !== wp_remote_retrieve_response_code($response)) {
+return [];
 }
 $data = json_decode(wp_remote_retrieve_body($response), true);
 if (JSON_ERROR_NONE !== json_last_error()) {
@@ -429,6 +452,9 @@ shuffle($newData['posts']);
 break;
 }
 $this->saveFeedData($newData);
+if (($newData['sprite'] ?? null) !== ($data['sprite'] ?? null) || !is_file($this->getSpriteFile())) {
+$this->handleSpriteFile($newData);
+}
 return $newData;
 }
 public function saveConnectedSource($source, $pageToRedirectOnError = null)
@@ -462,12 +488,13 @@ return ['error' => 'no-posts'];
 }
 if (isset($source['is_reconnecting']) && $source['is_reconnecting']) {
 $this->updateFeedData($source['feed_data']);
-$oldSource = $this->getConnectedSource();
-$oldSource['access_token'] = $source['access_token'];
-$source = $oldSource;
+$source = $this->getConnectedSource();
 } else {
 $this->saveFeedData($source['feed_data']);
+$this->handleSpriteFile($source['feed_data']);
+if ($this->isValidPublicId($source['public_id'] ?? null)) {
 update_option($this->getOptionName('public-id'), $source['public_id'], false);
+}
 unset($source['avatar_url']);
 unset($source['feed_data']);
 unset($source['token_expires']);
@@ -475,6 +502,7 @@ unset($source['access_token_expires']);
 unset($source['public_id']);
 unset($source['is_reconnecting']);
 }
+unset($source['access_token']);
 if ($source['name']) {
 $source['name'] = wp_json_encode($source['name']);
 }
@@ -4868,14 +4896,18 @@ $data = [
 'container' => esc_attr($this->getContainerKey($id)),
 ];
 if ($isWpWidget) {
+if (isset($feedData['sprite'])) {
+$feedData['sprite']['image_url'] = $this->getSpriteUrl($feedData['sprite']);
+}
 $data['data'] = $feedData;
 if (!get_option($this->getOptionName('load-css-inline'), 0)) {
 $data['cssUrl'] = $this->getCssUrl().(is_file($this->getCssFile()) ? '?'.filemtime($this->getCssFile()) : '');
 }
 $data['pluginVersion'] = $this->getVersion();
 }
-$json = wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-$inline = 'window.tiFeedWidgetData = window.tiFeedWidgetData || {};window.tiFeedWidgetData["'.$id.'"] = '.$json.';window.TrustindexFeed && TrustindexFeed.init();';
+$json = wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP);
+$jsId = wp_json_encode((string) $id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+$inline = 'window.tiFeedWidgetData = window.tiFeedWidgetData || {};window.tiFeedWidgetData['.$jsId.'] = '.$json.';window.TrustindexFeed && TrustindexFeed.init();';
 wp_add_inline_script($handle, $inline, 'before');
 };
 add_action('wp_footer', $enqueue);
@@ -5024,6 +5056,76 @@ if ($method !== 'direct' && !defined('FS_METHOD')) {
 return 'direct';
 }
 return $method;
+}
+
+
+public function getSpriteFile($returnOnlyFile = false)
+{
+$file = 'trustindex-feed-'. $this->getShortName() .'-sprite.webp';
+if ($returnOnlyFile) {
+return $file;
+}
+return trailingslashit(wp_upload_dir()['basedir']) . $file;
+}
+public function isSpriteLocalEnabled()
+{
+return (bool) get_option($this->getOptionName('sprite-local'), 1);
+}
+public function handleSpriteFile($feedData)
+{
+$spriteUrl = $feedData['sprite']['image_url'] ?? '';
+$isSaved = $this->isSpriteLocalEnabled()
+&& 0 === strpos($spriteUrl, 'https://cdn.trustindex.io/')
+&& $this->saveSpriteFile($spriteUrl);
+if (!$isSaved && is_file($this->getSpriteFile())) {
+wp_delete_file($this->getSpriteFile());
+}
+}
+private function saveSpriteFile($spriteUrl)
+{
+if (!function_exists('request_filesystem_credentials')) {
+require_once ABSPATH . 'wp-admin/includes/file.php';
+}
+add_filter('filesystem_method', array($this, 'filterFilesystemMethod'));
+$wp_filesystem = $this->getFilesystemApi($this->getSpriteFile());
+remove_filter('filesystem_method', array($this, 'filterFilesystemMethod'));
+if (!$wp_filesystem || !$wp_filesystem->is_writable(dirname($this->getSpriteFile()))) {
+return false;
+}
+$response = wp_remote_get($spriteUrl, [
+'timeout' => 30,
+'sslverify' => false,
+]);
+if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
+return false;
+}
+return $wp_filesystem->put_contents($this->getSpriteFile(), wp_remote_retrieve_body($response), FS_CHMOD_FILE);
+}
+private function getSpriteUrl($sprite)
+{
+if ($this->isSpriteLocalEnabled() && is_file($this->getSpriteFile())) {
+return set_url_scheme(wp_upload_dir()['baseurl']) .'/'. $this->getSpriteFile(true) .'?'. filemtime($this->getSpriteFile());
+}
+return add_query_arg('v', md5(wp_json_encode($sprite['list'] ?? [])), rest_url($this->getWebhookAction() .'/sprite'));
+}
+public function streamSprite()
+{
+$publicId = get_option($this->getOptionName('public-id'));
+if (!$this->isValidPublicId($publicId)) {
+return new WP_Error('missing_public_id', 'Public ID is missing', ['status' => 404]);
+}
+$response = wp_remote_get('https://cdn.trustindex.io/wp-feeds/'. substr($publicId, 0, 2) .'/'. $publicId .'/sprite.webp', [
+'timeout' => 5,
+'sslverify' => false,
+]);
+if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
+return new WP_Error('sprite_not_found', 'Sprite is not available', ['status' => 404]);
+}
+header('Content-Type: image/webp');
+header('Cache-Control: public, max-age=31536000, immutable');
+// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+echo wp_remote_retrieve_body($response);
+exit;
 }
 
 
@@ -5496,6 +5598,7 @@ return [
 'token-expires',
 'css-content',
 'load-css-inline',
+'sprite-local',
 'layout',
 'template',
 ];
@@ -5535,8 +5638,11 @@ return update_option($this->getOptionName('version-control'), $data, false);
 public function getAuthError(WP_REST_Request $request)
 {
 $signature = $request->get_header('X-Signature');
-$timestamp = (int) $request->get_header('X-Timestamp');
-if (1800 < (time() - $timestamp)) {
+$timestamp = $request->get_header('X-Timestamp');
+if (null === $signature || null === $timestamp || !ctype_digit($timestamp)) {
+return new WP_Error('missing_signature', 'Signature is missing', ['status' => 401]);
+}
+if (1800 < abs(time() - (int) $timestamp)) {
 return new WP_Error('expired', 'Request expired', ['status' => 401]);
 }
 $publicId = get_option($this->getOptionName('public-id'));

@@ -11,5 +11,6 @@ $assetCheckJs = [
 ];
 $assetCheckCssId = 'trustindex-feed-admin-instagram';
 $assetCheckCssFile = 'assets/css/admin.css';
+$pluginManagerInstance->registerIfPublicIdMissing();
 include(plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'admin.php');
 ?>

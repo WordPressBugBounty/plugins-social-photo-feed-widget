@@ -23,6 +23,16 @@ header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'
 }
 exit;
 }
+else if ($_REQUEST['command'] === 'toggle-sprite-local') {
+check_admin_referer('ti-toggle-sprite');
+$v = isset($_GET['value']) ? (int) sanitize_text_field(wp_unslash($_GET['value'])) : 0;
+update_option($pluginManagerInstance->getOptionName('sprite-local'), $v, false);
+$pluginManagerInstance->handleSpriteFile($pluginManagerInstance->getFeedDataLocal());
+if (isset($_GET['page'])) {
+header('Location: admin.php?page=' . sanitize_text_field(wp_unslash($_GET['page'])) . '&tab=advanced');
+}
+exit;
+}
 else if ($_REQUEST['command'] === 'delete-css-file') {
 check_admin_referer('ti-delete-css');
 if (is_file($pluginManagerInstance->getCssFile())) {
@@ -37,9 +47,11 @@ exit;
 }
 $yesIcon = '<span class="dashicons dashicons-yes-alt"></span>';
 $noIcon = '<span class="dashicons dashicons-dismiss"></span>';
-$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.8.3");
+$pluginUpdated = ($pluginManagerInstance->getPluginCurrentVersion() <= "1.8.4");
 $cssInline = get_option($pluginManagerInstance->getOptionName('load-css-inline'), 0);
 $css = get_option($pluginManagerInstance->getOptionName('css-content'));
+$isUploadWriteable = $pluginManagerInstance->isCssWriteable();
+$isSpriteLocal = $pluginManagerInstance->isSpriteLocalEnabled() && $isUploadWriteable;
 ?>
 <h1 class="ti-header-title"><?php echo esc_html(__('Advanced', 'social-photo-feed-widget')); ?></h1>
 <div class="ti-box">
@@ -69,7 +81,7 @@ $css = get_option($pluginManagerInstance->getOptionName('css-content'));
 CSS
 <ul>
 <li><?php
-echo wp_kses_post(__('writing permission', 'social-photo-feed-widget') .' (<strong>'. dirname($pluginManagerInstance->getCssFile()) .'</strong>): '. ($pluginManagerInstance->isCssWriteable() ? $yesIcon : $noIcon)); ?>
+echo wp_kses_post(__('writing permission', 'social-photo-feed-widget') .' (<strong>'. dirname($pluginManagerInstance->getCssFile()) .'</strong>): '. ($isUploadWriteable ? $yesIcon : $noIcon)); ?>
 </li>
 <li>
 <?php echo esc_html(__('CSS content:', 'social-photo-feed-widget')); ?>
@@ -103,6 +115,24 @@ echo wp_kses_post($noIcon);
 </ul>
 </li>
 <?php endif; ?>
+<li>
+<?php echo esc_html(__('Sprite image', 'social-photo-feed-widget')); ?>
+<ul>
+<li><?php
+echo wp_kses_post(__('writing permission', 'social-photo-feed-widget') .' (<strong>'. dirname($pluginManagerInstance->getSpriteFile()) .'</strong>): '. ($isUploadWriteable ? $yesIcon : $noIcon)); ?>
+</li>
+<li>
+<?php echo esc_html(__('Local sprite file:', 'social-photo-feed-widget')); ?>
+<?php echo wp_kses_post($isSpriteLocal && is_file($pluginManagerInstance->getSpriteFile()) ? $yesIcon : $noIcon); ?>
+<?php if (isset($_GET['page'])): ?>
+<span class="ti-checkbox ti-checkbox-row" style="margin-top: 5px">
+<input type="checkbox" value="1" <?php if ($isSpriteLocal): ?>checked<?php endif;?> <?php if (!$isUploadWriteable): ?>disabled<?php endif;?> onchange="window.location.href = '?page=<?php echo esc_attr(sanitize_text_field(wp_unslash($_GET['page']))); ?>&tab=advanced&_wpnonce=<?php echo esc_attr(wp_create_nonce('ti-toggle-sprite')); ?>&command=toggle-sprite-local&value=' + (this.checked ? 1 : 0)">
+<label><?php echo esc_html(__('Store sprite image locally', 'social-photo-feed-widget')); ?></label>
+</span>
+<?php endif; ?>
+</li>
+</ul>
+</li>
 <li>
 <?php echo esc_html(__('If you are using cacher plugin, you should:', 'social-photo-feed-widget')); ?>
 <ul>

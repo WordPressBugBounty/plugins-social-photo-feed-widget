@@ -49,6 +49,9 @@ delete_option($pluginManagerInstance->getOptionName('token-expires'));
 delete_option($pluginManagerInstance->getOptionName('layout'));
 delete_option($pluginManagerInstance->getOptionName('template'));
 delete_option($pluginManagerInstance->getOptionName('css-content'));
+if (is_file($pluginManagerInstance->getSpriteFile())) {
+wp_delete_file($pluginManagerInstance->getSpriteFile());
+}
 $pluginManagerInstance->setNotificationParam('token-renew', 'active', false);
 $pluginManagerInstance->setNotificationParam('token-expired', 'active', false);
 if (isset($_GET['page'])) {
@@ -234,10 +237,11 @@ echo esc_html(sprintf(__('This will ensure that your %s Feed Widget continues to
 <?php $connectUrl = 'https://admin.trustindex.io/source/edit_feed/type/Instagram/iframe/1'; ?>
 
 <?php
+$publicId = get_option($pluginManagerInstance->getOptionName('public-id'));
 $connectUrlParams = array_merge(
 isset($connectPending['error']) ? [] : $connectPending,
+($pluginManagerInstance->isValidPublicId($publicId) ? array('public_id' => $publicId) : array()),
 array(
-'public_id' => get_option($pluginManagerInstance->getOptionName('public-id')),
 'website' => esc_attr(urlencode(get_option('siteurl'))),
 'version' => esc_attr($pluginManagerInstance->getVersion()),
 ),

@@ -5,6 +5,7 @@ foreach ($this->getNotUsedOptionNames() as $optName) {
 delete_option($this->getOptionName($optName));
 }
 $this->updateVersion('update-version-check', $this->getVersion());
+$this->registerIfPublicIdMissing();
 if (get_option($this->getOptionName('css-content'))) {
 $cssCdnVersion = $this->getCdnVersion('feed-css');
 if (version_compare($cssCdnVersion, $this->getVersion('feed-css'))) {

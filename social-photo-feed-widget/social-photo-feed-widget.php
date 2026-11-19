@@ -5,7 +5,7 @@ Plugin Title: Widgets for Social Photo Feed Plugin
 Plugin URI: https://wordpress.org/plugins/social-photo-feed-widget/
 Description: Instagram Feed Widgets. Display your Instagram feed on your website to increase engagement, sales and SEO.
 Tags: instagram, instagram feed, instagram gallery, instagram photos, instagram widget
-Version: 1.8.3
+Version: 1.8.4
 Requires at least: 6.2
 Requires PHP: 7.2
 Author: Trustindex.io <support@trustindex.io>
@@ -27,7 +27,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 defined('ABSPATH') or die('No script kiddies please!');
 require_once plugin_dir_path(__FILE__) . 'include' . DIRECTORY_SEPARATOR . 'cache-plugin-filters.php';
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-feed-plugin.class.php';
-$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.8.3", "Widgets for Social Photo Feed", "Instagram");
+$trustindex_feed_instagram = new TRUSTINDEX_Feed_Instagram("instagram", __FILE__, "1.8.4", "Widgets for Social Photo Feed", "Instagram");
 $pluginManagerInstance = $trustindex_feed_instagram;
 register_activation_hook(__FILE__, [ $pluginManagerInstance, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $pluginManagerInstance, 'deactivate' ]);
@@ -88,7 +88,7 @@ $source = $pluginManagerInstance->sanitizeJsonData(wp_unslash($request->get_para
 $source['feed_data'] = $pluginManagerInstance->getFeedDataFromCdn();
 if (empty($source['feed_data']['style']['type'])) {
 $oldFeedData = $pluginManagerInstance->getFeedDataLocal();
-$source['feed_data']['style'] = array_merge($source['feed_data']['style'], $oldFeedData['style'] ?? []);
+$source['feed_data']['style'] = array_merge($source['feed_data']['style'] ?? [], $oldFeedData['style'] ?? []);
 }
 $source = $pluginManagerInstance->saveConnectedSource($source);
 if (empty($source['error']) && !$pluginManagerInstance->isDownloadInProgress()) {
@@ -120,6 +120,13 @@ return $authError;
 return rest_ensure_response([
 'data' => $pluginManagerInstance->getFeedData(true),
 ]);
+},
+'permission_callback' => '__return_true',
+]);
+register_rest_route($pluginManagerInstance->getWebhookAction(), '/sprite', [
+'methods' => 'GET',
+'callback' => function () use ($pluginManagerInstance) {
+return $pluginManagerInstance->streamSprite();
 },
 'permission_callback' => '__return_true',
 ]);
